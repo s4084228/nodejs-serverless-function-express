@@ -217,7 +217,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["api/**/*"],
+  "include": ["api/**\\/*"],
   "exclude": ["node_modules"]
 }
 */
