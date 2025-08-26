@@ -1,7 +1,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { ResponseUtils } from '../utils/ResponseUtils';
 import { CorsUtils } from '../utils/CorsUtils';
-import { head } from '@vercel/blob';
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.TOC_SUPABASE_URL!;
+const supabaseKey = process.env.TOC_SUPABASE_SERVICE_ROLE_KEY!;
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   CorsUtils.setCors(res);
@@ -12,28 +16,48 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { id } = req.query;
+    const { type, status, limit = 10, page = 1 } = req.query;
     
-    if (!id || typeof id !== 'string') {
-      return ResponseUtils.send(res, ResponseUtils.error('Project ID is required', 400));
+    let query = supabase
+      .from('projects')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    // Add filters
+    if (type && typeof type === 'string') {
+      query = query.eq('type', type);
+    }
+    
+    if (status && typeof status === 'string') {
+      query = query.eq('status', status);
     }
 
-    // Get blob info
-    const filename = `projects/${id}.json`;
-    const blobInfo = await head(filename);
+    // Add pagination
+    const pageNum = parseInt(page as string);
+    const limitNum = parseInt(limit as string);
+    const from = (pageNum - 1) * limitNum;
+    const to = from + limitNum - 1;
     
-    if (!blobInfo) {
-      return ResponseUtils.send(res, ResponseUtils.error('Project not found', 404));
+    query = query.range(from, to);
+
+    const { data: projects, error } = await query;
+
+    if (error) {
+      console.error('Supabase error:', error);
+      return ResponseUtils.send(res, ResponseUtils.error('Database error', 500, error.message));
     }
 
-    // Fetch project data
-    const response = await fetch(blobInfo.url);
-    const projectData = await response.json();
-
-    return ResponseUtils.send(res, ResponseUtils.success(projectData, 'Project retrieved successfully'));
+    return ResponseUtils.send(res, ResponseUtils.success({
+      projects,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total: projects?.length || 0
+      }
+    }, 'Projects retrieved successfully'));
 
   } catch (err) {
     console.error('API Error:', err);
-    return ResponseUtils.send(res, ResponseUtils.error('Failed to retrieve project', 500));
+    return ResponseUtils.send(res, ResponseUtils.error('Failed to retrieve projects', 500));
   }
 }
