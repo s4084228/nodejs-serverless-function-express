@@ -1,4 +1,4 @@
-export interface ProjectData {
+export default interface ProjectData {
   projectTitle: string;
   bigPictureGoal: string;
   projectAim: string;

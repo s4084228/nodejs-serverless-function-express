@@ -1,25 +1,27 @@
+
+
 // ================================================================
-// CREATE API Handler
+// UPDATE API Handler
 // ================================================================
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { ResponseUtils } from '../utils/ResponseUtils';
 import { CorsUtils } from '../utils/CorsUtils';
 import ValidationUtils from '../utils/ValidationUtils';
-import { ProjectService, CreateProjectRequest } from '../..//services/ProjectService';
+import { ProjectService, UpdateProjectRequest } from '../../services/ProjectService';
 
-export default async function createHandler(req: VercelRequest, res: VercelResponse) {
+export default async function updateHandler(req: VercelRequest, res: VercelResponse) {
     CorsUtils.setCors(res);
     if (CorsUtils.handleOptions(req, res)) return;
 
-    if (req.method !== 'POST') {
+    if (req.method !== 'PUT') {
         return ResponseUtils.send(res, ResponseUtils.error('Method not allowed', 405));
     }
 
     try {
-        const requestData: CreateProjectRequest = req.body;
+        const requestData: UpdateProjectRequest = req.body;
 
-        // Validate mandatory fields for CREATE (only userId and projectTitle required)
-        const mandatoryErrors = ProjectService.validateCreateRequest(requestData);
+        // Validate mandatory fields for UPDATE (userId, projectId, projectTitle required)
+        const mandatoryErrors = ProjectService.validateUpdateRequest(requestData);
         if (mandatoryErrors.length > 0) {
             return ResponseUtils.send(res, ResponseUtils.error(
                 'Missing mandatory fields',
@@ -29,7 +31,7 @@ export default async function createHandler(req: VercelRequest, res: VercelRespo
         }
 
         // Validate field formats and types (for provided fields only)
-        const formatErrors = ValidationUtils.validateProjectForCreate(requestData);
+        const formatErrors = ValidationUtils.validateProjectForUpdate(requestData);
         if (formatErrors.length > 0) {
             return ResponseUtils.send(res, ResponseUtils.error(
                 'Validation failed',
@@ -48,22 +50,22 @@ export default async function createHandler(req: VercelRequest, res: VercelRespo
             ));
         }
 
-        // Create project using service
-        const result = await ProjectService.createProject(requestData);
+        // Update project using service
+        const result = await ProjectService.updateProject(requestData);
 
         // Return success response
         return ResponseUtils.send(res, ResponseUtils.success(
             result,
-            'Project created and saved to MongoDB',
-            201
+            'Project updated in both database and blob storage',
+            200
         ));
 
     } catch (err) {
-        console.error('Create Project API Error:', err);
+        console.error('Update Project API Error:', err);
 
         // Handle specific error types
         let statusCode = 500;
-        let errorMessage = 'Failed to create project';
+        let errorMessage = 'Failed to update project';
 
         if (err instanceof Error) {
             errorMessage = err.message;
@@ -73,7 +75,7 @@ export default async function createHandler(req: VercelRequest, res: VercelRespo
                 statusCode = 400;
             } else if (err.message.includes('not found') || err.message.includes('access denied')) {
                 statusCode = 404;
-            } else if (err.message.includes('Database error')) {
+            } else if (err.message.includes('Database') || err.message.includes('Ownership validation')) {
                 statusCode = 500;
             }
         }
