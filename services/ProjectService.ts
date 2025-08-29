@@ -1,81 +1,9 @@
 import { MongoClient, Db, Collection } from 'mongodb';
-
-export interface CreateProjectRequest {
-    userId: string;
-    projectTitle: string;
-    bigPictureGoal?: string;
-    projectAim?: string;
-    objectives?: any[];
-    beneficiaries?: any;
-    activities?: any[];
-    outcomes?: any[];
-    externalFactors?: any[];
-    evidenceLinks?: any[];
-    status?: string;
-}
-
-export interface UpdateProjectRequest {
-    userId: string;
-    projectId: string;
-    projectTitle: string;
-    updateName?: boolean;
-    tocData?: {
-        bigPictureGoal?: string;
-        projectAim?: string;
-        objectives?: any[];
-        beneficiaries?: any;
-        activities?: any[];
-        outcomes?: any[];
-        externalFactors?: any[];
-        evidenceLinks?: any[];
-    };
-    status?: string;
-}
-
-export interface BulkProjectData {
-    projectId?: string;
-    projectTitle: string;
-    projectData: {
-        bigPictureGoal?: string;
-        projectAim?: string;
-        objectives?: any[];
-        beneficiaries?: any;
-        activities?: any[];
-        outcomes?: any[];
-        externalFactors?: any[];
-        evidenceLinks?: any[];
-        status?: string;
-    };
-}
-
-export interface BulkCreateUpdateRequest {
-    userId: string;
-    projects: BulkProjectData[];
-}
-
-export interface GetProjectsRequest {
-    userId: string;
-    projectId?: string;
-}
-
-export interface ProjectResponse {
-    userId: string;
-    projectId: string;
-    projectTitle: string;
-    tocData?: any;
-    bigPictureGoal?: string;
-    projectAim?: string;
-    objectives?: any[];
-    beneficiaries?: any;
-    activities?: any[];
-    outcomes?: any[];
-    externalFactors?: any[];
-    evidenceLinks?: any[];
-    status: string;
-    type: string;
-    createdAt: string;
-    updatedAt: string;
-}
+import { UpdateProjectRequest } from '../api/entities/UpdateProjectRequest'
+import { CreateProjectRequest } from '../api/entities/CreateProjectRequest'
+import { BulkCreateUpdateRequest } from '../api/entities/BulkCreateUpdateRequest'
+import { GetProjectsRequest } from '../api/entities/GetProjectsRequest'
+import { ProjectResponse } from '../api/entities/ProjectResponse'
 
 export class ProjectService {
     private static client: MongoClient | null = null;
