@@ -2,11 +2,11 @@
 // CREATE API Handler
 // ================================================================
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { ResponseUtils } from '../utils/ResponseUtils';
-import { CorsUtils } from '../utils/CorsUtils';
-import ValidationUtils from '../utils/ValidationUtils';
+import { ResponseUtils } from '../../services/utils/ResponseUtils';
+import { CorsUtils } from '../../services/utils/CorsUtils';
+import ValidationUtils from '../../services/utils/ValidationUtils';
 import { ProjectService } from '../../services/ProjectService';
-import { CreateProjectRequest } from '../entities/CreateProjectRequest'
+import { CreateProjectRequest } from '../../services/entities/CreateProjectRequest'
 
 export default async function createHandler(req: VercelRequest, res: VercelResponse) {
     CorsUtils.setCors(res);

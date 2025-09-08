@@ -1,9 +1,9 @@
 import { MongoClient, Db, Collection } from 'mongodb';
-import { UpdateProjectRequest } from '../api/entities/UpdateProjectRequest'
-import { CreateProjectRequest } from '../api/entities/CreateProjectRequest'
-import { BulkCreateUpdateRequest } from '../api/entities/BulkCreateUpdateRequest'
-import { GetProjectsRequest } from '../api/entities/GetProjectsRequest'
-import { ProjectResponse } from '../api/entities/ProjectResponse'
+import { UpdateProjectRequest } from '../services/entities/UpdateProjectRequest'
+import { CreateProjectRequest } from '../services/entities/CreateProjectRequest'
+import { BulkCreateUpdateRequest } from '../services/entities/BulkCreateUpdateRequest'
+import { GetProjectsRequest } from '../services/entities/GetProjectsRequest'
+import { ProjectResponse } from '../services/entities/ProjectResponse'
 
 export class ProjectService {
     private static client: MongoClient | null = null;

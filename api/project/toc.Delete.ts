@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { ResponseUtils } from '../utils/ResponseUtils';
-import { CorsUtils } from '../utils/CorsUtils';
+import { ResponseUtils } from '../../services/utils/ResponseUtils';
+import { CorsUtils } from '../../services/utils/CorsUtils';
 import { ProjectService } from '../../services/ProjectService';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

@@ -1,9 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { ResponseUtils } from '../utils/ResponseUtils';
-import { CorsUtils } from '../utils/CorsUtils';
-import ValidationUtils from '../utils/ValidationUtils';
+import { ResponseUtils } from '../../services/utils/ResponseUtils';
+import { CorsUtils } from '../../services/utils/CorsUtils';
+import ValidationUtils from '../../services/utils/ValidationUtils';
 import { ProjectService } from '../../services/ProjectService';
-import { UpdateProjectRequest } from '../entities/UpdateProjectRequest'
+import { UpdateProjectRequest } from '../../services/entities/UpdateProjectRequest'
 
 export default async function updateHandler(req: VercelRequest, res: VercelResponse) {
     CorsUtils.setCors(res);
