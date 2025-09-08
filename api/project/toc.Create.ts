@@ -5,7 +5,8 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { ResponseUtils } from '../utils/ResponseUtils';
 import { CorsUtils } from '../utils/CorsUtils';
 import ValidationUtils from '../utils/ValidationUtils';
-import { ProjectService, CreateProjectRequest } from '../..//services/ProjectService';
+import { ProjectService } from '../../services/ProjectService';
+import { CreateProjectRequest } from '../entities/CreateProjectRequest'
 
 export default async function createHandler(req: VercelRequest, res: VercelResponse) {
     CorsUtils.setCors(res);
