@@ -3,7 +3,8 @@
   "license": "MIT",
   "private": true,
   "devDependencies": {
-    "@supabase/supabase-js": "^2.56.0",
+    "@supabase/supabase-js": "^2.57.2",
+    "@types/bcrypt": "^6.0.0",
     "@types/node": "^17.0.45",
     "@vercel/blob": "^0.15.1",
     "@vercel/node": "^2.15.10",
@@ -11,6 +12,8 @@
   },
   "dependencies": {
     "@vercel/blob": "^1.1.1",
-    "mongodb": "^6.19.0"
+    "bcrypt": "^6.0.0",
+    "mongodb": "^6.19.0",
+    "resend": "^6.0.2"
   }
 }
