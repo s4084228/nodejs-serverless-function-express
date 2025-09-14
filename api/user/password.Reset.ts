@@ -5,7 +5,7 @@ import crypto from 'crypto';
 import bcrypt from 'bcrypt';
 import dotenv from 'dotenv';
 dotenv.config({ path: '.env.local' });
-//import dotenv from 'dotenv';
+
 import {
     findUserByEmail,
     storePasswordResetToken,
@@ -16,13 +16,12 @@ import {
     type PasswordResetToken
 } from '../../services/utils/Supabase';
 
-
 // Create Gmail SMTP transporter
-const transporter = nodemailer.createTransport({
+const transporter = nodemailer.createTransporter({
     service: 'gmail',
     auth: {
         user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_APP_PASSWORD // // Use app password from environment  
+        pass: process.env.GMAIL_APP_PASSWORD
     },
 });
 
@@ -33,8 +32,6 @@ interface ResetRequestBody {
     token?: string;
     newPassword?: string;
 }
-
-//dotenv.config({ path: path.resolve(process.cwd(), '.env.development.local') });
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') {
@@ -73,7 +70,6 @@ async function handleResetRequest(email: string, res: VercelResponse) {
         // 1. Verify email exists in database
         const user = await findUserByEmail(email);
         if (!user) {
-            // Reveal if email exists or not for security
             return res.status(200).json({
                 message: 'This email not exists in our system'
             });
@@ -93,10 +89,18 @@ async function handleResetRequest(email: string, res: VercelResponse) {
 
         // 4. Send email with token using Gmail SMTP
         try {
-            console.log('16. Sending email via Gmail SMTP...');
+            console.log('Sending email via Gmail SMTP...');
+
+            // Get sender info from environment variables
+            const senderEmail = process.env.GMAIL_USER;
+            const senderName = process.env.GMAIL_SENDER_NAME || 'Quality for Outcomes';
+
+            if (!senderEmail) {
+                throw new Error('GMAIL_USER environment variable is not set');
+            }
 
             const emailResult = await transporter.sendMail({
-                from: '"Quality for Outcomes" <qualityforoutcomes@gmail.com>',
+                from: `"${senderName}" <${senderEmail}>`,
                 to: email,
                 subject: 'Password Reset Code',
                 html: `
@@ -107,14 +111,13 @@ async function handleResetRequest(email: string, res: VercelResponse) {
                     ${resetToken}
                   </div>
                   <p>This code will expire in 15 minutes.</p>
-                  <p>Debug info: Email sent to ${email} at ${new Date().toISOString()}</p>
                   <p>If you didn't request this, please ignore this email.</p>
                 </div>
                 `,
                 text: `Password Reset Request\n\nYou requested a password reset. Use this code to reset your password: ${resetToken}\n\nThis code will expire in 15 minutes.\n\nIf you didn't request this, please ignore this email.`
             });
 
-            console.log('17. Email sent successfully:', emailResult.messageId);
+            console.log('Email sent successfully:', emailResult.messageId);
 
             return res.status(200).json({
                 message: 'If this email exists, you should receive a reset code',
@@ -129,12 +132,11 @@ async function handleResetRequest(email: string, res: VercelResponse) {
             });
 
         } catch (emailError: any) {
-            console.error('18. EMAIL SEND ERROR:', {
+            console.error('EMAIL SEND ERROR:', {
                 message: emailError.message,
                 code: emailError.code,
                 responseCode: emailError.responseCode,
-                response: emailError.response,
-                stack: emailError.stack
+                response: emailError.response
             });
 
             return res.status(500).json({
