@@ -4,7 +4,7 @@ import nodemailer from 'nodemailer';
 import crypto from 'crypto';
 import bcrypt from 'bcrypt';
 import dotenv from 'dotenv';
-dotenv.config({ path: '.env.local' });
+//dotenv.config({ path: '.env.local' });
 
 import {
     findUserByEmail,
