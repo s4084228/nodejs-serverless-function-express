@@ -22,10 +22,10 @@ yarn-debug.log*
 yarn-error.log*
 
 # Local ENV files
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+#.env.local
+#.env.development.local
+#.env.test.local
+#.env.production.local
 
 # Vercel
 .vercel
@@ -38,4 +38,4 @@ yarn-error.log*
 
 #VisualStudio
 .vs/
-.env*.local
+#.env*.local
