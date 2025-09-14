@@ -93,6 +93,7 @@ export async function findValidResetToken(
             .select('*')
             .eq('email', email)
             .eq('token', token)
+            .gt('expires_at', new Date().toISOString())
             .single();
 
         if (error && error.code !== 'PGRST116') {

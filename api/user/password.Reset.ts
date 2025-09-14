@@ -1,8 +1,11 @@
 // api/user/userResetPassword.ts
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { Resend } from 'resend';
+import nodemailer from 'nodemailer';
 import crypto from 'crypto';
 import bcrypt from 'bcrypt';
+import dotenv from 'dotenv';
+dotenv.config({ path: '.env.local' });
+//import dotenv from 'dotenv';
 import {
     findUserByEmail,
     storePasswordResetToken,
@@ -13,9 +16,16 @@ import {
     type PasswordResetToken
 } from '../../services/utils/Supabase';
 
-//const resend = new Resend(process.env.RESEND_API_KEY);
-//const resend = "re_4NQGERWM_Ea7DCHeTfs2jcSbVcvLC4XNb";
-const resend = new Resend('re_4NQGERWM_Ea7DCHeTfs2jcSbVcvLC4XNb');
+
+// Create Gmail SMTP transporter
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: process.env.GMAIL_USER,
+        pass: process.env.GMAIL_APP_PASSWORD // "rtpa aoxe xnkf yfwp", // Use app password from environment  
+    },
+});
+
 // Types for request body
 interface ResetRequestBody {
     email: string;
@@ -23,6 +33,8 @@ interface ResetRequestBody {
     token?: string;
     newPassword?: string;
 }
+
+//dotenv.config({ path: path.resolve(process.cwd(), '.env.development.local') });
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') {
@@ -61,9 +73,9 @@ async function handleResetRequest(email: string, res: VercelResponse) {
         // 1. Verify email exists in database
         const user = await findUserByEmail(email);
         if (!user) {
-            // Don't reveal if email exists or not for security
+            // Reveal if email exists or not for security
             return res.status(200).json({
-                message: 'If this email exists, you will receive a reset code'
+                message: 'This email not exists'
             });
         }
 
@@ -79,30 +91,65 @@ async function handleResetRequest(email: string, res: VercelResponse) {
             expiresAt: tokenExpiry
         });
 
-        // 4. Send email with token
-        await resend.emails.send({
-            from: 'toc@resend.dev',
-            to: [email],
-            subject: 'Password Reset Code',
-            html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2>Password Reset Request</h2>
-          <p>You requested a password reset. Use this code to reset your password:</p>
-          <div style="background-color: #f5f5f5; padding: 20px; text-align: center; font-size: 32px; font-weight: bold; letter-spacing: 4px; margin: 20px 0; border-radius: 8px;">
-            ${resetToken}
-          </div>
-          <p>This code will expire in 15 minutes.</p>
-          <p>If you didn't request this, please ignore this email.</p>
-        </div>
-      `
-        });
+        // 4. Send email with token using Gmail SMTP
+        try {
+            console.log('16. Sending email via Gmail SMTP...');
 
-        return res.status(200).json({
-            message: 'If this email exists, you will receive a reset code'
-        });
-    } catch (emailError) {
-        console.error('Email send error:', emailError);
-        return res.status(500).json({ error: 'Failed to send reset email' });
+            const emailResult = await transporter.sendMail({
+                from: '"Quality for Outcomes" <qualityforoutcomes@gmail.com>',
+                to: email,
+                subject: 'Password Reset Code',
+                html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                  <h2>Password Reset Request</h2>
+                  <p>You requested a password reset. Use this code to reset your password:</p>
+                  <div style="background-color: #f5f5f5; padding: 20px; text-align: center; font-size: 32px; font-weight: bold; letter-spacing: 4px; margin: 20px 0; border-radius: 8px;">
+                    ${resetToken}
+                  </div>
+                  <p>This code will expire in 15 minutes.</p>
+                  <p>Debug info: Email sent to ${email} at ${new Date().toISOString()}</p>
+                  <p>If you didn't request this, please ignore this email.</p>
+                </div>
+                `,
+                text: `Password Reset Request\n\nYou requested a password reset. Use this code to reset your password: ${resetToken}\n\nThis code will expire in 15 minutes.\n\nIf you didn't request this, please ignore this email.`
+            });
+
+            console.log('17. Email sent successfully:', emailResult.messageId);
+
+            return res.status(200).json({
+                message: 'If this email exists, you should receive a reset code',
+                debug: {
+                    emailSent: true,
+                    messageId: emailResult.messageId,
+                    recipientEmail: email,
+                    timestamp: new Date().toISOString(),
+                    // Remove token in production!
+                    resetToken: process.env.NODE_ENV === 'development' ? resetToken : 'hidden'
+                }
+            });
+
+        } catch (emailError: any) {
+            console.error('18. EMAIL SEND ERROR:', {
+                message: emailError.message,
+                code: emailError.code,
+                responseCode: emailError.responseCode,
+                response: emailError.response,
+                stack: emailError.stack
+            });
+
+            return res.status(500).json({
+                error: 'Failed to send reset email',
+                debug: {
+                    emailSent: false,
+                    errorMessage: emailError.message,
+                    errorCode: emailError.code,
+                    responseCode: emailError.responseCode
+                }
+            });
+        }
+    } catch (error) {
+        console.error('General error in handleResetRequest:', error);
+        return res.status(500).json({ error: 'Failed to process reset request' });
     }
 }
 
