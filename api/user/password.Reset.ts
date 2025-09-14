@@ -22,7 +22,7 @@ const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
         user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_APP_PASSWORD // "rtpa aoxe xnkf yfwp", // Use app password from environment  
+        pass: process.env.GMAIL_APP_PASSWORD // // Use app password from environment  
     },
 });
 
@@ -75,7 +75,7 @@ async function handleResetRequest(email: string, res: VercelResponse) {
         if (!user) {
             // Reveal if email exists or not for security
             return res.status(200).json({
-                message: 'This email not exists'
+                message: 'This email not exists in our system'
             });
         }
 
