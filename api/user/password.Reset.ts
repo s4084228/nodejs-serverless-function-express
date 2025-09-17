@@ -1,10 +1,10 @@
-// api/user/userResetPassword.ts
+// api/user/userResetPassword.ts - Updated for new table structure
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import nodemailer from 'nodemailer';
 import crypto from 'crypto';
 import bcrypt from 'bcrypt';
 import dotenv from 'dotenv';
-//dotenv.config({ path: '.env.local' });
+dotenv.config({ path: '.env.local' });
 
 import {
     findUserByEmail,
@@ -12,9 +12,10 @@ import {
     findValidResetToken,
     updateUserPassword,
     deleteResetToken,
-    type User,
+    type CompleteUser,
     type PasswordResetToken
 } from '../../services/utils/Supabase';
+import ValidationUtils from '../../services/utils/ValidationUtils';
 
 // Create Gmail SMTP transporter
 const transporter = nodemailer.createTransport({
@@ -42,7 +43,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const { email, action, token, newPassword }: ResetRequestBody = req.body;
 
         // Validate email format
-        if (!email || !isValidEmail(email)) {
+        if (!email || !ValidationUtils.isValidEmail(email)) {
             return res.status(400).json({ error: 'Valid email is required' });
         }
 
@@ -71,7 +72,7 @@ async function handleResetRequest(email: string, res: VercelResponse) {
         const user = await findUserByEmail(email);
         if (!user) {
             return res.status(200).json({
-                message: 'This email not exists in our system'
+                message: 'This email does not exist in our system'
             });
         }
 
@@ -81,7 +82,7 @@ async function handleResetRequest(email: string, res: VercelResponse) {
 
         // 3. Store token in database
         await storePasswordResetToken({
-            userId: user.id,
+            userId: user.user_id,  // Updated to use user_id
             email: email,
             token: resetToken,
             expiresAt: tokenExpiry
@@ -99,6 +100,11 @@ async function handleResetRequest(email: string, res: VercelResponse) {
                 throw new Error('GMAIL_USER environment variable is not set');
             }
 
+            // Get user's display name for personalization
+            const displayName = user.profile
+                ? `${user.profile.first_name || ''} ${user.profile.last_name || ''}`.trim()
+                : user.username || 'User';
+
             const emailResult = await transporter.sendMail({
                 from: `"${senderName}" <${senderEmail}>`,
                 to: email,
@@ -106,15 +112,20 @@ async function handleResetRequest(email: string, res: VercelResponse) {
                 html: `
                 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                   <h2>Password Reset Request</h2>
+                  ${displayName ? `<p>Hello ${displayName},</p>` : ''}
                   <p>You requested a password reset. Use this code to reset your password:</p>
                   <div style="background-color: #f5f5f5; padding: 20px; text-align: center; font-size: 32px; font-weight: bold; letter-spacing: 4px; margin: 20px 0; border-radius: 8px;">
                     ${resetToken}
                   </div>
                   <p>This code will expire in 15 minutes.</p>
                   <p>If you didn't request this, please ignore this email.</p>
+                  <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
+                  <p style="color: #666; font-size: 12px;">
+                    This email was sent by ${senderName}. If you have any questions, please contact our support team.
+                  </p>
                 </div>
                 `,
-                text: `Password Reset Request\n\nYou requested a password reset. Use this code to reset your password: ${resetToken}\n\nThis code will expire in 15 minutes.\n\nIf you didn't request this, please ignore this email.`
+                text: `Password Reset Request\n\n${displayName ? `Hello ${displayName},\n\n` : ''}You requested a password reset. Use this code to reset your password: ${resetToken}\n\nThis code will expire in 15 minutes.\n\nIf you didn't request this, please ignore this email.`
             });
 
             console.log('Email sent successfully:', emailResult.messageId);
@@ -173,7 +184,7 @@ async function handleTokenVerification(
         }
 
         // 2. Validate new password
-        const passwordValidation = validatePassword(newPassword);
+        const passwordValidation = ValidationUtils.validatePassword(newPassword);
         if (!passwordValidation.isValid) {
             return res.status(400).json({
                 error: passwordValidation.message
@@ -181,7 +192,7 @@ async function handleTokenVerification(
         }
 
         // 3. Hash and update user password
-        const hashedPassword = await hashPassword(newPassword);
+        const hashedPassword = await ValidationUtils.hashPassword(newPassword);
         await updateUserPassword(resetRecord.user_id, hashedPassword);
 
         // 4. Delete used reset token
@@ -196,42 +207,3 @@ async function handleTokenVerification(
     }
 }
 
-// Utility functions
-function isValidEmail(email: string): boolean {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-}
-
-function validatePassword(password: string): { isValid: boolean; message: string } {
-    if (!password) {
-        return { isValid: false, message: 'Password is required' };
-    }
-
-    if (password.length < 8) {
-        return { isValid: false, message: 'Password must be at least 8 characters long' };
-    }
-
-    if (!/(?=.*[a-z])/.test(password)) {
-        return { isValid: false, message: 'Password must contain at least one lowercase letter' };
-    }
-
-    if (!/(?=.*[A-Z])/.test(password)) {
-        return { isValid: false, message: 'Password must contain at least one uppercase letter' };
-    }
-
-    if (!/(?=.*\d)/.test(password)) {
-        return { isValid: false, message: 'Password must contain at least one number' };
-    }
-
-    return { isValid: true, message: 'Password is valid' };
-}
-
-async function hashPassword(password: string): Promise<string> {
-    try {
-        const saltRounds = 12;
-        return await bcrypt.hash(password, saltRounds);
-    } catch (error) {
-        console.error('Error hashing password:', error);
-        throw new Error('Failed to hash password');
-    }
-}

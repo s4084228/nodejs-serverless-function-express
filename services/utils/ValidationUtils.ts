@@ -1,5 +1,5 @@
 import  ProjectData from '../entities/ProjectData';
-
+import bcrypt from 'bcrypt';
 export default class ValidationUtils {
 
     /**
@@ -258,5 +258,51 @@ export default class ValidationUtils {
         }
 
         return errors;
+    }
+
+
+// Utility functions
+    static  isValidEmail(email: string): boolean {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+    }
+
+    static  validatePassword(password: string): { isValid: boolean; message: string } {
+        if (!password) {
+            return { isValid: false, message: 'Password is required' };
+        }
+
+        if (password.length < 8) {
+            return { isValid: false, message: 'Password must be at least 8 characters long' };
+        }
+
+        if (!/(?=.*[a-z])/.test(password)) {
+            return { isValid: false, message: 'Password must contain at least one lowercase letter' };
+        }
+
+        if (!/(?=.*[A-Z])/.test(password)) {
+            return { isValid: false, message: 'Password must contain at least one uppercase letter' };
+        }
+
+        if (!/(?=.*\d)/.test(password)) {
+            return { isValid: false, message: 'Password must contain at least one number' };
+        }
+
+        return { isValid: true, message: 'Password is valid' };
+    }
+
+    static async  hashPassword(password: string): Promise<string> {
+        try {
+            const saltRounds = 12;
+            return await bcrypt.hash(password, saltRounds);
+        } catch (error) {
+            console.error('Error hashing password:', error);
+            throw new Error('Failed to hash password');
+        }
+    }
+
+    static isValidUsername(username: string): boolean {
+        const usernameRegex = /^[a-zA-Z0-9_]{3,30}$/;
+        return usernameRegex.test(username);
     }
 }
