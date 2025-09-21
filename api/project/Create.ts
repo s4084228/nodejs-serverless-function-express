@@ -7,8 +7,9 @@ import { CorsUtils } from '../../services/utils/CorsUtils';
 import ValidationUtils from '../../services/utils/ValidationUtils';
 import { ProjectService } from '../../services/ProjectService';
 import { CreateProjectRequest } from '../../services/entities/CreateProjectRequest'
+import { validateToken, AuthenticatedRequest } from '../../services/middleware/Auth';
 
-export default async function createHandler(req: VercelRequest, res: VercelResponse) {
+async function createProject(req: AuthenticatedRequest, res: VercelResponse) {
     CorsUtils.setCors(res);
     if (CorsUtils.handleOptions(req, res)) return;
 
@@ -18,6 +19,14 @@ export default async function createHandler(req: VercelRequest, res: VercelRespo
 
     try {
         const requestData: CreateProjectRequest = req.body;
+
+        if (req.user.userId.toString() != requestData.userId) {
+            return ResponseUtils.send(res, ResponseUtils.error(
+                'AUthentication Failed',
+                400
+              
+            ));
+        }
 
         // Validate mandatory fields for CREATE (only userId and projectTitle required)
         const mandatoryErrors = ProjectService.validateCreateRequest(requestData);
@@ -82,3 +91,5 @@ export default async function createHandler(req: VercelRequest, res: VercelRespo
         return ResponseUtils.send(res, ResponseUtils.error(errorMessage, statusCode));
     }
 }
+
+export default validateToken(createProject);

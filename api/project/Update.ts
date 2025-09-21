@@ -4,8 +4,9 @@ import { CorsUtils } from '../../services/utils/CorsUtils';
 import ValidationUtils from '../../services/utils/ValidationUtils';
 import { ProjectService } from '../../services/ProjectService';
 import { UpdateProjectRequest } from '../../services/entities/UpdateProjectRequest'
+import { validateToken, AuthenticatedRequest } from '../../services/middleware/Auth';
 
-export default async function updateHandler(req: VercelRequest, res: VercelResponse) {
+async function updateProject(req: AuthenticatedRequest, res: VercelResponse) {
     CorsUtils.setCors(res);
     if (CorsUtils.handleOptions(req, res)) return;
 
@@ -79,3 +80,4 @@ export default async function updateHandler(req: VercelRequest, res: VercelRespo
         return ResponseUtils.send(res, ResponseUtils.error(errorMessage, statusCode));
     }
 }
+export default validateToken(updateProject);

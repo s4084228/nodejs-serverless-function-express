@@ -3,8 +3,9 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { ResponseUtils } from '../../services/utils/ResponseUtils';
 import { CorsUtils } from '../../services/utils/CorsUtils';
 import { ProjectService } from '../../services/ProjectService';
+import { validateToken, AuthenticatedRequest } from '../../services/middleware/Auth';
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+async function getProjectList(req: AuthenticatedRequest, res: VercelResponse) {
     CorsUtils.setCors(res);
     if (CorsUtils.handleOptions(req, res)) return;
 
@@ -42,3 +43,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return ResponseUtils.send(res, ResponseUtils.error('Failed to retrieve project list', 500));
     }
 }
+
+export default validateToken(getProjectList);

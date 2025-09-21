@@ -2,8 +2,10 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { ResponseUtils } from '../../services/utils/ResponseUtils';
 import { CorsUtils } from '../../services/utils/CorsUtils';
 import { ProjectService } from '../../services/ProjectService';
+import { validateToken, AuthenticatedRequest } from '../../services/middleware/Auth';
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+
+async function getProject(req: AuthenticatedRequest, res: VercelResponse) {
     CorsUtils.setCors(res);
     if (CorsUtils.handleOptions(req, res)) return;
 
@@ -12,12 +14,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     try {
-        const { userId, projectId, type, status, limit = 10, page = 1 } = req.query;
-
+        const userId = req.user.userId.toString();
+        const email = req.user.email;
+        const { projectId, type, status, limit = 10, page = 1 } = req.query;
+        console.log("userId: ", userId);
+        console.log("email: ", email);
         // Validate required parameters
-        if (!userId || typeof userId !== 'string') {
-            return ResponseUtils.send(res, ResponseUtils.error('userId is required', 400));
-        }
+        //if (!userId || typeof userId !== 'string') {
+        //    return ResponseUtils.send(res, ResponseUtils.error('userId is required', 400));
+        //}
 
         let projects = [];
 
@@ -69,3 +74,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return ResponseUtils.send(res, ResponseUtils.error('Failed to retrieve projects', 500));
     }
 }
+
+export default validateToken(getProject);
