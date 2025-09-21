@@ -95,7 +95,8 @@ export class ProjectService {
             return {
                 userId: doc.userId,
                 projectId: doc.projectId,
-                tocData: doc.tocData
+                tocData: doc.tocData,
+                tocColor: doc.tocColor || null
             } as ProjectResponse;
         } catch (error) {
             console.error('Error getting project:', error);
@@ -131,7 +132,8 @@ export class ProjectService {
                     type: 'project',
                     createdAt: timestamp,
                     updatedAt: timestamp
-                }
+                },
+                tocColor: requestData.tocColor || null
             };
 
             const { collection } = await this.getDatabase();
@@ -140,7 +142,8 @@ export class ProjectService {
             return {
                 userId: document.userId,
                 projectId: document.projectId,
-                tocData: document.tocData
+                tocData: document.tocData,
+                tocColor: document.tocColor
             } as ProjectResponse;
 
         } catch (error) {
@@ -178,25 +181,35 @@ export class ProjectService {
             // Handle tocData updates properly
             const tocData = requestData.tocData;
 
+            // Handle tocColor updates - merge with existing if provided
+            let updatedTocColor = existing.tocColor;
+            if (requestData.tocColor) {
+                updatedTocColor = {
+                    ...existing.tocColor,
+                    ...requestData.tocColor
+                };
+            }
+
             const updatedDocument = {
                 userId: requestData.userId,
                 projectId: requestData.projectId,
                 projectTitle: requestData.projectTitle,
                 tocData: {
                     projectTitle: requestData.projectTitle,
-                    bigPictureGoal: (tocData && tocData.hasOwnProperty('bigPictureGoal')) ? tocData.bigPictureGoal : existing.bigPictureGoal,
-                    projectAim: (tocData && tocData.hasOwnProperty('projectAim')) ? tocData.projectAim : existing.projectAim,
-                    objectives: (tocData && tocData.hasOwnProperty('objectives')) ? tocData.objectives : existing.objectives,
-                    beneficiaries: (tocData && tocData.hasOwnProperty('beneficiaries')) ? tocData.beneficiaries : existing.beneficiaries,
-                    activities: (tocData && tocData.hasOwnProperty('activities')) ? tocData.activities : existing.activities,
-                    outcomes: (tocData && tocData.hasOwnProperty('outcomes')) ? tocData.outcomes : existing.outcomes,
-                    externalFactors: (tocData && tocData.hasOwnProperty('externalFactors')) ? tocData.externalFactors : existing.externalFactors,
-                    evidenceLinks: (tocData && tocData.hasOwnProperty('evidenceLinks')) ? tocData.evidenceLinks : existing.evidenceLinks,
-                    status: requestData.status !== undefined ? requestData.status : existing.status,
+                    bigPictureGoal: (tocData && tocData.hasOwnProperty('bigPictureGoal')) ? tocData.bigPictureGoal : existing.tocData.bigPictureGoal,
+                    projectAim: (tocData && tocData.hasOwnProperty('projectAim')) ? tocData.projectAim : existing.tocData.projectAim,
+                    objectives: (tocData && tocData.hasOwnProperty('objectives')) ? tocData.objectives : existing.tocData.objectives,
+                    beneficiaries: (tocData && tocData.hasOwnProperty('beneficiaries')) ? tocData.beneficiaries : existing.tocData.beneficiaries,
+                    activities: (tocData && tocData.hasOwnProperty('activities')) ? tocData.activities : existing.tocData.activities,
+                    outcomes: (tocData && tocData.hasOwnProperty('outcomes')) ? tocData.outcomes : existing.tocData.outcomes,
+                    externalFactors: (tocData && tocData.hasOwnProperty('externalFactors')) ? tocData.externalFactors : existing.tocData.externalFactors,
+                    evidenceLinks: (tocData && tocData.hasOwnProperty('evidenceLinks')) ? tocData.evidenceLinks : existing.tocData.evidenceLinks,
+                    status: requestData.status !== undefined ? requestData.status : existing.tocData.status,
                     type: 'project',
-                    createdAt: existing.createdAt,
+                    createdAt: existing.tocData.createdAt,
                     updatedAt: timestamp
-                }
+                },
+                tocColor: updatedTocColor
             };
 
             const { collection } = await this.getDatabase();
@@ -208,7 +221,8 @@ export class ProjectService {
             return {
                 userId: updatedDocument.userId,
                 projectId: updatedDocument.projectId,
-                tocData: updatedDocument.tocData
+                tocData: updatedDocument.tocData,
+                tocColor: updatedDocument.tocColor
             } as ProjectResponse;
 
         } catch (error) {
@@ -229,7 +243,8 @@ export class ProjectService {
             return docs.map(doc => ({
                 userId: doc.userId,
                 projectId: doc.projectId,
-                tocData: doc.tocData
+                tocData: doc.tocData,
+                tocColor: doc.tocColor || null
             } as ProjectResponse));
 
         } catch (error) {
@@ -250,6 +265,7 @@ export class ProjectService {
                             projectId: projectData.projectId,
                             projectTitle: projectData.projectTitle,
                             ...projectData.projectData,
+                            tocColor: projectData.tocColor,
                             updateName: true
                         };
 
@@ -259,6 +275,7 @@ export class ProjectService {
                         const createRequest: CreateProjectRequest = {
                             userId: requestData.userId,
                             projectTitle: projectData.projectTitle,
+                            tocColor: projectData.tocColor,
                             ...projectData.projectData
                         };
 
