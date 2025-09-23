@@ -1,3 +1,5 @@
+export {};
+/*
 // api/auth/login.ts - Login with database verification
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
@@ -96,3 +98,4 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
     }
 }
+*/

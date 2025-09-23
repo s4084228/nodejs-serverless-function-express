@@ -1,47 +1,40 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+// api/project/Delete.ts - Refactored
+import type { VercelResponse } from '@vercel/node';
+import { createHandler } from '../../services/utils/HandlerFactory';
+import { Validators } from '../../services/validators';
 import { ResponseUtils } from '../../services/utils/ResponseUtils';
-import { CorsUtils } from '../../services/utils/CorsUtils';
 import { ProjectService } from '../../services/ProjectService';
-import { validateToken, AuthenticatedRequest } from '../../services/middleware/Auth';
+import { AuthenticatedRequest } from '../../services/middleware/Auth';
 
-async function deleteProject(req: AuthenticatedRequest, res: VercelResponse) {
-    CorsUtils.setCors(res);
-    if (CorsUtils.handleOptions(req, res)) return;
+const deleteProject = async (req: AuthenticatedRequest, res: VercelResponse) => {
+  // Get userId from JWT token (secure)
+  const userId = req.user.userId.toString();
+  const { projectId } = req.body;
 
-    if (req.method !== 'DELETE') {
-        return ResponseUtils.send(res, ResponseUtils.error('Method not allowed', 405));
-    }
+  // Validate projectId
+  if (!projectId || typeof projectId !== 'string') {
+    ResponseUtils.send(res, ResponseUtils.error('projectId is required', 400));
+    return;
+  }
 
-    try {
-        const { userId, projectId } = req.body;
+  console.log(`Delete request - UserId: ${userId}, ProjectId: ${projectId}`);
 
-        // Validate required fields
-        if (!userId || typeof userId !== 'string') {
-            return ResponseUtils.send(res, ResponseUtils.error('userId is required', 400));
-        }
+  // Use ProjectService delete method - all logic is in the service
+  const deleted = await ProjectService.deleteProject(userId, projectId);
 
-        if (!projectId || typeof projectId !== 'string') {
-            return ResponseUtils.send(res, ResponseUtils.error('projectId is required', 400));
-        }
+  if (!deleted) {
+    ResponseUtils.send(res, ResponseUtils.notFound(`Project with ID ${projectId} not found for user ${userId}`));
+    return;
+  }
 
-        console.log(`Delete request - UserId: ${userId}, ProjectId: ${projectId}`);
+  ResponseUtils.send(res, ResponseUtils.deleted({
+    userId,
+    projectId
+  }, 'Project deleted successfully'));
+};
 
-        // Use ProjectService delete method - all logic is in the service
-        const deleted = await ProjectService.deleteProject(userId, projectId);
-
-        if (!deleted) {
-            return ResponseUtils.send(res, ResponseUtils.error(`Project with ID ${projectId} not found for user ${userId}`, 404));
-        }
-
-        return ResponseUtils.send(res, ResponseUtils.success({
-            userId,
-            projectId
-        }, 'Project deleted successfully'));
-
-    } catch (err) {
-        console.error('Delete Project API Error:', err);
-        return ResponseUtils.send(res, ResponseUtils.error('Failed to delete project', 500));
-    }
-}
-
-export default validateToken(deleteProject);
+export default createHandler(deleteProject, {
+  requireAuth: true,
+  allowedMethods: ['DELETE'],
+  validator: Validators.deleteProject
+});

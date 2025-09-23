@@ -1,3 +1,4 @@
+export {};
 //import { createClient } from '@supabase/supabase-js';
 //import { put } from '@vercel/blob';
 //import { randomUUID } from 'crypto';

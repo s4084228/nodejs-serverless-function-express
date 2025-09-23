@@ -1,5 +1,5 @@
 // services/middleware/Auth.ts
-import jwt from 'jsonwebtoken';
+import * as jwt from 'jsonwebtoken';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 // Define your JWT payload structure

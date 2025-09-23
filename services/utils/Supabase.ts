@@ -1,45 +1,20 @@
-// services/utils/Supabase.ts - Updated for your table structure
+// services/utils/Supabase.ts
 
 import { createClient } from '@supabase/supabase-js';
+import {UserProfile} from '../dto/UserProfile';
+import {CompleteUser} from '../dto/CompleteUser';
+import {User} from '../dto/User';
+import {PasswordResetToken} from '../dto/PasswordResetToken';
+import UserResponse from '../../services/entities/user/UserResponse';
+
 
 const supabase = createClient(
-    //process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    //process.env.SUPABASE_SERVICE_ROLE_KEY!
-
     process.env.TOC_SUPABASE_URL!,
     process.env.TOC_SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// Type definitions matching your schema
-export interface User {
-    user_id: number;
-    email: string;
-    username?: string;
-    password_hash: string;
-    created_at: Date;
-}
 
-export interface UserProfile {
-    email: string;
-    first_name?: string;
-    last_name?: string;
-    avatar_url?: string;
-    organisation?: string;
-    updated_at: Date;
-}
 
-export interface CompleteUser extends User {
-    profile?: UserProfile;
-}
-
-export interface PasswordResetToken {
-    id: number;
-    user_id: number;
-    email: string;
-    token: string;
-    expires_at: Date;
-    created_at: Date;
-}
 
 // Find user by email (joins with profile)
 export async function findUserByEmail(email: string): Promise<CompleteUser | null> {
@@ -234,17 +209,7 @@ export async function deleteUserAvatar(avatarUrl: string): Promise<void> {
 }
 
 // Get user profile for display
-export async function getUserProfile(email: string): Promise<{
-    user_id: number;
-    email: string;
-    username?: string;
-    first_name?: string;
-    last_name?: string;
-    organisation?: string;
-    avatar_url?: string;
-    display_name: string;
-    created_at: Date;
-} | null> {
+export async function getUserProfile(email: string): Promise<UserResponse | null> {
     try {
         const user = await findUserByEmail(email);
 
@@ -256,15 +221,15 @@ export async function getUserProfile(email: string): Promise<{
             : user.username || user.email;
 
         return {
-            user_id: user.user_id,
+            userId: user.user_id,
             email: user.email,
             username: user.username,
-            first_name: profile?.first_name,
-            last_name: profile?.last_name,
+            firstName: profile?.first_name,
+            lastName: profile?.last_name,
             organisation: profile?.organisation,
-            avatar_url: profile?.avatar_url,
-            display_name: displayName || user.email,
-            created_at: user.created_at
+            avatarUrl: profile?.avatar_url,
+            displayName: displayName || user.email,
+            createdAt: user.created_at
         };
     } catch (error) {
         console.error('Error getting user profile:', error);
@@ -274,7 +239,7 @@ export async function getUserProfile(email: string): Promise<{
 
 // Password reset token functions (existing functionality)
 export async function storePasswordResetToken(tokenData: {
-    userId: number;
+    userId: string;
     email: string;
     token: string;
     expiresAt: Date;

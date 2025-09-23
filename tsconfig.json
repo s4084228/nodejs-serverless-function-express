@@ -1,14 +1,41 @@
+//{
+//  "compilerOptions": {
+//    "target": "ES2020",
+//    "lib": [ "ES2020" ],
+//    "module": "commonjs",
+//    "moduleResolution": "node",
+//    "strict": true,
+//    "esModuleInterop": true,
+//    "skipLibCheck": true,
+//    "forceConsistentCasingInFileNames": true
+//  },
+//  "include": [ "api/**/*", "utils/**/*", "entities/**/*" ],
+//  "exclude": [ "node_modules" ]
+//}
+
 {
   "compilerOptions": {
-    "target": "ES2020",
-    "lib": [ "ES2020" ],
-    "module": "commonjs",
-    "moduleResolution": "node",
-    "strict": true,
-    "esModuleInterop": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true
+    "target": "ES2020",
+    "module": "commonjs",
+    "lib": [ "ES2020" ],
+    "allowJs": true,
+    "skipLibCheck": false,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true
   },
-  "include": [ "api/**/*", "utils/**/*", "entities/**/*" ],
-  "exclude": [ "node_modules" ]
+  "include": [
+    "api/**/*",
+    "services/**/*",
+    "**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    ".vercel"
+  ]
 }

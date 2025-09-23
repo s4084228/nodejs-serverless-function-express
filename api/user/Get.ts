@@ -1,33 +1,26 @@
-// api/user/details.ts - Correct GET implementation
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-import jwt from 'jsonwebtoken';
-import { getUserProfile } from '../../services/utils/Supabase';
-import { validateToken, AuthenticatedRequest } from '../../services/middleware/Auth';
+// api/user/Get.ts - Refactored
+import type { VercelResponse } from '@vercel/node';
+import { createHandler } from '../../services/utils/HandlerFactory';
+import { ResponseUtils } from '../../services/utils/ResponseUtils';
+import { getUserProfile } from '../../services/UserService';
+import { AuthenticatedRequest } from '../../services/middleware/Auth';
 
-async function getUser(req: AuthenticatedRequest, res: VercelResponse) {
-    if (req.method !== 'GET') {
-        return res.status(405).json({ error: 'Method not allowed' });
-    }
+const getUser = async (req: AuthenticatedRequest, res: VercelResponse) => {
+  // Get user from JWT token (secure way)
+  const user = req.user;
 
-    // Get user from JWT token (secure way)
-    const user = req.user;
-   
+  // Use email from JWT token, not request body
+  const userDetails = await getUserProfile(user.email);
 
-    try {
-        // Use email from JWT token, not request body
-        const userDetails = await getUserProfile(user.email);
+  if (!userDetails) {
+    ResponseUtils.send(res, ResponseUtils.notFound('User not found'));
+    return;
+  }
 
-        if (!userDetails) {
-            return res.status(404).json({ error: 'User not found' });
-        }
+  ResponseUtils.send(res, ResponseUtils.success(userDetails, 'User details retrieved successfully'));
+};
 
-        return res.status(200).json({
-            success: true,
-            user: userDetails
-        });
-    } catch (error) {
-        console.error('Get user details error:', error);
-        return res.status(500).json({ error: 'Internal server error' });
-    }
-}
-export default validateToken(getUser);
+export default createHandler(getUser, {
+  requireAuth: true,
+  allowedMethods: ['GET']
+});

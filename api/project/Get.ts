@@ -1,78 +1,75 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+// api/project/Get.ts - Refactored
+import type { VercelResponse } from '@vercel/node';
+import { createHandler } from '../../services/utils/HandlerFactory';
 import { ResponseUtils } from '../../services/utils/ResponseUtils';
-import { CorsUtils } from '../../services/utils/CorsUtils';
 import { ProjectService } from '../../services/ProjectService';
-import { validateToken, AuthenticatedRequest } from '../../services/middleware/Auth';
+import { AuthenticatedRequest } from '../../services/middleware/Auth';
+
+import ProjectData from "../../services/entities/project/ProjectData"
 
 
-async function getProject(req: AuthenticatedRequest, res: VercelResponse) {
-    CorsUtils.setCors(res);
-    if (CorsUtils.handleOptions(req, res)) return;
 
-    if (req.method !== 'GET') {
-        return ResponseUtils.send(res, ResponseUtils.error('Method not allowed', 405));
+const getProject = async (req: AuthenticatedRequest, res: VercelResponse) => {
+  // Get userId from JWT token (secure)
+  const userId = req.user.userId.toString();
+  const email = req.user.email;
+  const { projectId, type, status, limit = 10, page = 1 } = req.query;
+  
+  console.log("userId: ", userId);
+  console.log("email: ", email);
+
+  
+let projects: ProjectData[] = [];
+
+  // If projectId is provided, get specific project
+  if (projectId && typeof projectId === 'string') {
+    const project = await ProjectService.getProjectById(userId, projectId);
+    if (!project) {
+      ResponseUtils.send(res, ResponseUtils.notFound('Project not found'));
+      return;
     }
+    projects = [project];
+  } else {
+    // Get all projects for the user
+    projects = await ProjectService.listUserProjects(userId);
+  }
 
-    try {
-        const userId = req.user.userId.toString();
-        const email = req.user.email;
-        const { projectId, type, status, limit = 10, page = 1 } = req.query;
-        console.log("userId: ", userId);
-        console.log("email: ", email);
-        // Validate required parameters
-        //if (!userId || typeof userId !== 'string') {
-        //    return ResponseUtils.send(res, ResponseUtils.error('userId is required', 400));
-        //}
+  // Apply filters
+  if (type && typeof type === 'string') {
+    projects = projects.filter(project => project.type === type);
+  }
 
-        let projects = [];
+  if (status && typeof status === 'string') {
+    projects = projects.filter(project => project.status === status);
+  }
 
-        // If projectId is provided, get specific project
-        if (projectId && typeof projectId === 'string') {
-            const project = await ProjectService.getProjectById(userId, projectId);
-            if (!project) {
-                return ResponseUtils.send(res, ResponseUtils.error('Project not found', 404));
-            }
-            projects = [project];
-        } else {
-            // Get all projects for the user
-            projects = await ProjectService.listUserProjects(userId);
-        }
+  // Sort by created_at descending (most recent first)
+  projects.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-        // Apply filters
-        if (type && typeof type === 'string') {
-            projects = projects.filter(project => project.type === type);
-        }
+  // Apply pagination
+  const pageNum = parseInt(page as string);
+  const limitNum = parseInt(limit as string);
+  const startIndex = (pageNum - 1) * limitNum;
+  const endIndex = startIndex + limitNum;
 
-        if (status && typeof status === 'string') {
-            projects = projects.filter(project => project.status === status);
-        }
+  const paginatedProjects = projects.slice(startIndex, endIndex);
+  const totalProjects = projects.length;
 
-        // Sort by created_at descending (most recent first)
-        projects.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-        // Apply pagination
-        const pageNum = parseInt(page as string);
-        const limitNum = parseInt(limit as string);
-        const startIndex = (pageNum - 1) * limitNum;
-        const endIndex = startIndex + limitNum;
-
-        const paginatedProjects = projects.slice(startIndex, endIndex);
-        const totalProjects = projects.length;
-
-        return ResponseUtils.send(res, ResponseUtils.success({
-            projects: paginatedProjects,
-            pagination: {
-                page: pageNum,
-                limit: limitNum,
-                total: totalProjects,
-                totalPages: Math.ceil(totalProjects / limitNum)
-            }
-        }, 'Projects retrieved successfully'));
-
-    } catch (err) {
-        console.error('API Error:', err);
-        return ResponseUtils.send(res, ResponseUtils.error('Failed to retrieve projects', 500));
+  const result = {
+    //userId: userId,
+    projects: paginatedProjects,
+    pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total: totalProjects,
+        totalPages: Math.ceil(totalProjects / limitNum)
     }
-}
+};
 
-export default validateToken(getProject);
+  ResponseUtils.send(res, ResponseUtils.success(result, 'Projects retrieved successfully'));
+};
+
+export default createHandler(getProject, {
+  requireAuth: true,
+  allowedMethods: ['GET']
+});

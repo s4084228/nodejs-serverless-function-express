@@ -1,9 +1,11 @@
+export {};
+/*
 // api/user/userResetPassword.ts - Updated for new table structure
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import nodemailer from 'nodemailer';
-import crypto from 'crypto';
-import bcrypt from 'bcrypt';
-import dotenv from 'dotenv';
+import * as nodemailer from 'nodemailer';
+import * as crypto from 'crypto';
+import * as bcrypt from 'bcrypt';
+import * as dotenv from 'dotenv';
 dotenv.config({ path: '.env.local' });
 
 import {
@@ -12,10 +14,11 @@ import {
     findValidResetToken,
     updateUserPassword,
     deleteResetToken,
-    type CompleteUser,
-    type PasswordResetToken
+    
 } from '../../services/utils/Supabase';
-import ValidationUtils from '../../services/utils/ValidationUtils';
+import { CompleteUser} from '../../services/dto/CompleteUser';
+import { PasswordResetToken} from '../../services/dto/PasswordResetToken';
+import ValidationUtils from '../../services/validators/ValidationUtils';
 
 // Create Gmail SMTP transporter
 const transporter = nodemailer.createTransport({
@@ -206,4 +209,6 @@ async function handleTokenVerification(
         return res.status(500).json({ error: 'Failed to reset password' });
     }
 }
+
+*/
 

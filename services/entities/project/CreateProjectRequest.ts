@@ -1,4 +1,4 @@
-export interface CreateProjectRequest {
+export default interface CreateProjectRequest {
     userId: string;
     projectTitle: string;
     bigPictureGoal?: string;
@@ -10,4 +10,5 @@ export interface CreateProjectRequest {
     externalFactors?: any[];
     evidenceLinks?: any[];
     status?: string;
+    tocColor?: any;
 }
