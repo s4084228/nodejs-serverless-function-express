@@ -1,5 +1,6 @@
-import  ProjectData from '../entities/ProjectData';
-import bcrypt from 'bcrypt';
+
+import ProjectData from '../../services/entities/project/ProjectData';
+import * as bcrypt from 'bcrypt';
 export default class ValidationUtils {
 
     /**
@@ -10,9 +11,9 @@ export default class ValidationUtils {
         const errors: string[] = [];
 
         // Mandatory fields for create
-        if (!data.userId || typeof data.userId !== 'string') {
+        /*if (!data.userId || typeof data.userId !== 'string') {
             errors.push('userId is required and must be a string');
-        }
+        }*/
 
         if (!data.projectTitle || typeof data.projectTitle !== 'string') {
             errors.push('projectTitle is required and must be a string');
@@ -173,57 +174,58 @@ export default class ValidationUtils {
      * Now validates as if it's a complete project (stricter validation)
      */
     static validateProject(data: ProjectData): string[] {
-        const errors: string[] = [];
+    const errors: string[] = [];
 
-        if (!data.projectTitle || typeof data.projectTitle !== 'string') {
-            errors.push('projectTitle is required and must be a string');
-        }
-
-        if (!data.bigPictureGoal || typeof data.bigPictureGoal !== 'string') {
-            errors.push('bigPictureGoal is required and must be a string');
-        }
-
-        if (!data.projectAim || typeof data.projectAim !== 'string') {
-            errors.push('projectAim is required and must be a string');
-        }
-
-        if (!Array.isArray(data.objectives)) {
-            errors.push('objectives must be an array');
-        }
-
-        if (!data.beneficiaries || typeof data.beneficiaries !== 'object') {
-            errors.push('beneficiaries must be an object');
-        } else {
-            if (!data.beneficiaries.description || typeof data.beneficiaries.description !== 'string') {
-                errors.push('beneficiaries.description is required and must be a string');
-            }
-            if (typeof data.beneficiaries.estimatedReach !== 'number') {
-                errors.push('beneficiaries.estimatedReach must be a number');
-            }
-        }
-
-        if (!Array.isArray(data.activities)) {
-            errors.push('activities must be an array');
-        }
-
-        if (!Array.isArray(data.outcomes)) {
-            errors.push('outcomes must be an array');
-        }
-
-        if (!Array.isArray(data.externalFactors)) {
-            errors.push('externalFactors must be an array');
-        }
-
-        if (!Array.isArray(data.evidenceLinks)) {
-            errors.push('evidenceLinks must be an array');
-        }
-
-        if (!['draft', 'published', 'active', 'completed', 'cancelled'].includes(data.status)) {
-            errors.push('status must be one of: "draft", "published", "active", "completed", "cancelled"');
-        }
-
-        return errors;
+    // Access properties through tocData
+    if (!data.tocData?.projectTitle || typeof data.tocData.projectTitle !== 'string') {
+        errors.push('projectTitle is required and must be a string');
     }
+
+    if (!data.tocData?.bigPictureGoal || typeof data.tocData.bigPictureGoal !== 'string') {
+        errors.push('bigPictureGoal is required and must be a string');
+    }
+
+    if (!data.tocData?.projectAim || typeof data.tocData.projectAim !== 'string') {
+        errors.push('projectAim is required and must be a string');
+    }
+
+    if (!Array.isArray(data.tocData?.objectives)) {
+        errors.push('objectives must be an array');
+    }
+
+    if (!data.tocData?.beneficiaries || typeof data.tocData.beneficiaries !== 'object') {
+        errors.push('beneficiaries must be an object');
+    } else {
+        if (!data.tocData.beneficiaries.description || typeof data.tocData.beneficiaries.description !== 'string') {
+            errors.push('beneficiaries.description is required and must be a string');
+        }
+        if (typeof data.tocData.beneficiaries.estimatedReach !== 'number') {
+            errors.push('beneficiaries.estimatedReach must be a number');
+        }
+    }
+
+    if (!Array.isArray(data.tocData?.activities)) {
+        errors.push('activities must be an array');
+    }
+
+    if (!Array.isArray(data.tocData?.outcomes)) {
+        errors.push('outcomes must be an array');
+    }
+
+    if (!Array.isArray(data.tocData?.externalFactors)) {
+        errors.push('externalFactors must be an array');
+    }
+
+    if (!Array.isArray(data.tocData?.evidenceLinks)) {
+        errors.push('evidenceLinks must be an array');
+    }
+
+    if (!['draft', 'published', 'active', 'completed', 'cancelled'].includes(data.status)) {
+        errors.push('status must be one of: "draft", "published", "active", "completed", "cancelled"');
+    }
+
+    return errors;
+}
 
     /**
      * Validates common field formats regardless of operation
@@ -305,4 +307,19 @@ export default class ValidationUtils {
         const usernameRegex = /^[a-zA-Z0-9_]{3,30}$/;
         return usernameRegex.test(username);
     }
+
+
+    static validateEmail(email: string): { isValid: boolean; message: string } {
+        if (!email) {
+            return { isValid: false, message: 'Email is required' };
+        }
+        
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            return { isValid: false, message: 'Invalid email format' };
+        }
+        
+        return { isValid: true, message: 'Email is valid' };
+    }
+
 }

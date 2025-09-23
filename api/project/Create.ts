@@ -1,95 +1,44 @@
-// ================================================================
-// CREATE API Handler
-// ================================================================
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+// api/project/Create.ts - Use the refactored version
+import type { VercelResponse } from '@vercel/node';
+import { createHandler } from '../../services/utils/HandlerFactory';
+import { Validators } from '../../services/validators';
 import { ResponseUtils } from '../../services/utils/ResponseUtils';
-import { CorsUtils } from '../../services/utils/CorsUtils';
-import ValidationUtils from '../../services/utils/ValidationUtils';
+import ValidationUtils from '../../services/validators/ValidationUtils';
 import { ProjectService } from '../../services/ProjectService';
-import { CreateProjectRequest } from '../../services/entities/CreateProjectRequest'
-import { validateToken, AuthenticatedRequest } from '../../services/middleware/Auth';
+import { AuthenticatedRequest } from '../../services/middleware/Auth';
+import ProjectData from "../../services/entities/project/ProjectData"
 
-async function createProject(req: AuthenticatedRequest, res: VercelResponse) {
-    CorsUtils.setCors(res);
-    if (CorsUtils.handleOptions(req, res)) return;
+const createProject = async (req: AuthenticatedRequest, res: VercelResponse) => {
+  const requestData = req.body;
 
-    if (req.method !== 'POST') {
-        return ResponseUtils.send(res, ResponseUtils.error('Method not allowed', 405));
-    }
+  // Auth check - ensure user can only create projects for themselves
+  /*if (req.user.userId.toString() !== requestData.userId) {
+    ResponseUtils.send(res, ResponseUtils.unauthorized('Authentication Failed'));
+    return;
+  }*/
+  requestData.userId = req.user.userId.toString();
+  // Additional field format validation
+  const fieldErrors = ValidationUtils.validateFieldFormats(requestData);
+  if (fieldErrors.length > 0) {
+    ResponseUtils.send(res, ResponseUtils.validationError(fieldErrors));
+    return;
+  }
 
-    try {
-        const requestData: CreateProjectRequest = req.body;
+  // Additional project-specific validation for create
+  const projectErrors = ValidationUtils.validateProjectForCreate(requestData);
+  if (projectErrors.length > 0) {
+    ResponseUtils.send(res, ResponseUtils.validationError(projectErrors));
+    return;
+  }
 
-        if (req.user.userId.toString() != requestData.userId) {
-            return ResponseUtils.send(res, ResponseUtils.error(
-                'AUthentication Failed',
-                400
-              
-            ));
-        }
+  // Business logic - create project
 
-        // Validate mandatory fields for CREATE (only userId and projectTitle required)
-        const mandatoryErrors = ProjectService.validateCreateRequest(requestData);
-        if (mandatoryErrors.length > 0) {
-            return ResponseUtils.send(res, ResponseUtils.error(
-                'Missing mandatory fields',
-                400,
-                mandatoryErrors
-            ));
-        }
+  const result: ProjectData = await ProjectService.createProject(requestData);
+  ResponseUtils.send(res, ResponseUtils.created(result, 'Project created and saved to MongoDB'));
+};
 
-        // Validate field formats and types (for provided fields only)
-        const formatErrors = ValidationUtils.validateProjectForCreate(requestData);
-        if (formatErrors.length > 0) {
-            return ResponseUtils.send(res, ResponseUtils.error(
-                'Validation failed',
-                400,
-                formatErrors
-            ));
-        }
-
-        // Additional format validation
-        const fieldFormatErrors = ValidationUtils.validateFieldFormats(requestData);
-        if (fieldFormatErrors.length > 0) {
-            return ResponseUtils.send(res, ResponseUtils.error(
-                'Field format validation failed',
-                400,
-                fieldFormatErrors
-            ));
-        }
-
-        // Create project using service
-        const result = await ProjectService.createProject(requestData);
-
-        // Return success response
-        return ResponseUtils.send(res, ResponseUtils.success(
-            result,
-            'Project created and saved to MongoDB',
-            201
-        ));
-
-    } catch (err) {
-        console.error('Create Project API Error:', err);
-
-        // Handle specific error types
-        let statusCode = 500;
-        let errorMessage = 'Failed to create project';
-
-        if (err instanceof Error) {
-            errorMessage = err.message;
-
-            // Customize status codes based on error types
-            if (err.message.includes('Validation') || err.message.includes('required')) {
-                statusCode = 400;
-            } else if (err.message.includes('not found') || err.message.includes('access denied')) {
-                statusCode = 404;
-            } else if (err.message.includes('Database error')) {
-                statusCode = 500;
-            }
-        }
-
-        return ResponseUtils.send(res, ResponseUtils.error(errorMessage, statusCode));
-    }
-}
-
-export default validateToken(createProject);
+export default createHandler(createProject, {
+  requireAuth: true,
+  allowedMethods: ['POST'],
+  validator: Validators.createProject
+});

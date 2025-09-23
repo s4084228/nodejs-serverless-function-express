@@ -1,9 +1,8 @@
 import { MongoClient, Db, Collection } from 'mongodb';
-import { UpdateProjectRequest } from '../services/entities/UpdateProjectRequest'
-import { CreateProjectRequest } from '../services/entities/CreateProjectRequest'
-import { BulkCreateUpdateRequest } from '../services/entities/BulkCreateUpdateRequest'
-import { GetProjectsRequest } from '../services/entities/GetProjectsRequest'
-import { ProjectResponse } from '../services/entities/ProjectResponse'
+import  CreateProjectRequest  from '../services/entities/project/CreateProjectRequest'
+import  GetProjectsRequest  from '../services/entities/project/GetProjectsRequest'
+import  ProjectData  from '../services/entities/project/ProjectData'
+import UpdateProjectRequest from "../services/entities/project/UpdateProjectRequest"
 
 export class ProjectService {
     private static client: MongoClient | null = null;
@@ -23,18 +22,65 @@ export class ProjectService {
         return { db: this.db!, collection };
     }
 
+    static getDefaultTocColor(): any {
+        const defaultSection = { shape: "", text: "" };
+        return {
+            bigPictureGoal: defaultSection,
+            projectAim: defaultSection,
+            activities: defaultSection,
+            objectives: defaultSection,
+            beneficiaries: defaultSection,
+            outcomes: defaultSection,
+            externalFactors: defaultSection,
+            evidenceLinks: defaultSection
+        };
+    }
+
+    static validateTocColorFormat(tocColor: any): boolean {
+        if (!tocColor || typeof tocColor !== 'object') return false;
+
+        const validSections = [
+            'bigPictureGoal', 'projectAim', 'activities', 'objectives',
+            'beneficiaries', 'outcomes', 'externalFactors', 'evidenceLinks'
+        ];
+
+        for (const section of Object.keys(tocColor)) {
+            if (!validSections.includes(section)) continue;
+            
+            const sectionData = tocColor[section];
+            if (!sectionData || typeof sectionData !== 'object') return false;
+            
+            // Check if shape and text properties exist (can be empty strings)
+            if (!sectionData.hasOwnProperty('shape') || !sectionData.hasOwnProperty('text')) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     static validateCreateRequest(data: any): string[] {
         const errors: string[] = [];
-        if (!data.userId) errors.push('userId is required');
         if (!data.projectTitle) errors.push('projectTitle is required');
+        
+        // Validate tocColor format if provided
+        if (data.tocColor && !this.validateTocColorFormat(data.tocColor)) {
+            errors.push('tocColor format is invalid');
+        }
+        
         return errors;
     }
 
     static validateUpdateRequest(data: any): string[] {
         const errors: string[] = [];
-        if (!data.userId) errors.push('userId is required');
         if (!data.projectId) errors.push('projectId is required');
         if (!data.projectTitle) errors.push('projectTitle is required');
+        
+        // Validate tocColor format if provided
+        if (data.tocColor && !this.validateTocColorFormat(data.tocColor)) {
+            errors.push('tocColor format is invalid');
+        }
+        
         return errors;
     }
 
@@ -81,7 +127,7 @@ export class ProjectService {
         }
     }
 
-    static async getProjectById(userId: string, projectId: string): Promise<ProjectResponse | null> {
+    static async getProjectById(userId: string, projectId: string): Promise<ProjectData | null> {
         try {
             const { collection } = await this.getDatabase();
 
@@ -90,21 +136,35 @@ export class ProjectService {
                 projectId: projectId
             });
 
-            if (!doc || !doc.tocData) return null;
+            if (!doc) return null;
 
+            // Transform document to match flat ProjectData structure
             return {
-                userId: doc.userId,
                 projectId: doc.projectId,
-                tocData: doc.tocData,
-                tocColor: doc.tocColor || null
-            } as ProjectResponse;
+                status: doc.status,
+                type: doc.type,
+                createdAt: doc.createdAt,
+                updatedAt: doc.updatedAt,
+                tocData: {
+                    projectTitle: doc.tocData?.projectTitle || doc.projectTitle,
+                    bigPictureGoal: doc.tocData?.bigPictureGoal,
+                    projectAim: doc.tocData?.projectAim,
+                    objectives: doc.tocData?.objectives,
+                    beneficiaries: doc.tocData?.beneficiaries,
+                    activities: doc.tocData?.activities,
+                    outcomes: doc.tocData?.outcomes,
+                    externalFactors: doc.tocData?.externalFactors,
+                    evidenceLinks: doc.tocData?.evidenceLinks
+                },
+                tocColor: doc.tocColor || this.getDefaultTocColor()
+            } as ProjectData;
         } catch (error) {
             console.error('Error getting project:', error);
             return null;
         }
     }
 
-    static async createProject(requestData: CreateProjectRequest): Promise<ProjectResponse> {
+    static async createProject(requestData: CreateProjectRequest): Promise<ProjectData> {
         try {
             const titleExists = await this.checkProjectTitleExists(requestData.userId, requestData.projectTitle);
             if (titleExists) {
@@ -118,6 +178,10 @@ export class ProjectService {
                 userId: requestData.userId,
                 projectId: projectId,
                 projectTitle: requestData.projectTitle,
+                status: requestData.status || 'draft',
+                type: 'project',
+                createdAt: timestamp,
+                updatedAt: timestamp,
                 tocData: {
                     projectTitle: requestData.projectTitle,
                     bigPictureGoal: requestData.bigPictureGoal || null,
@@ -127,24 +191,24 @@ export class ProjectService {
                     activities: requestData.activities || null,
                     outcomes: requestData.outcomes || null,
                     externalFactors: requestData.externalFactors || null,
-                    evidenceLinks: requestData.evidenceLinks || null,
-                    status: requestData.status || 'draft',
-                    type: 'project',
-                    createdAt: timestamp,
-                    updatedAt: timestamp
+                    evidenceLinks: requestData.evidenceLinks || null
                 },
-                tocColor: requestData.tocColor || null
+                tocColor: requestData.tocColor || this.getDefaultTocColor(),
             };
 
             const { collection } = await this.getDatabase();
             await collection.insertOne(document);
 
+            // Return data in flat ProjectData format
             return {
-                userId: document.userId,
                 projectId: document.projectId,
+                status: document.status,
+                type: document.type,
+                createdAt: document.createdAt,
+                updatedAt: document.updatedAt,
                 tocData: document.tocData,
                 tocColor: document.tocColor
-            } as ProjectResponse;
+            } as ProjectData;
 
         } catch (error) {
             console.error('Create project error:', error);
@@ -152,7 +216,7 @@ export class ProjectService {
         }
     }
 
-    static async updateProject(requestData: UpdateProjectRequest): Promise<ProjectResponse> {
+    static async updateProject(requestData: UpdateProjectRequest): Promise<ProjectData> {
         try {
             const existing = await this.getProjectById(requestData.userId, requestData.projectId);
             if (!existing) {
@@ -181,12 +245,51 @@ export class ProjectService {
             // Handle tocData updates properly
             const tocData = requestData.tocData;
 
-            // Handle tocColor updates - merge with existing if provided
-            let updatedTocColor = existing.tocColor;
+            // Handle tocColor updates - deep merge to preserve nested structure
+            let updatedTocColor = existing.tocColor || this.getDefaultTocColor();
             if (requestData.tocColor) {
+                const defaultSection = { shape: "", text: "" };
                 updatedTocColor = {
-                    ...existing.tocColor,
-                    ...requestData.tocColor
+                    bigPictureGoal: {
+                        ...defaultSection,
+                        ...updatedTocColor.bigPictureGoal,
+                        ...requestData.tocColor.bigPictureGoal
+                    },
+                    projectAim: {
+                        ...defaultSection,
+                        ...updatedTocColor.projectAim,
+                        ...requestData.tocColor.projectAim
+                    },
+                    activities: {
+                        ...defaultSection,
+                        ...updatedTocColor.activities,
+                        ...requestData.tocColor.activities
+                    },
+                    objectives: {
+                        ...defaultSection,
+                        ...updatedTocColor.objectives,
+                        ...requestData.tocColor.objectives
+                    },
+                    beneficiaries: {
+                        ...defaultSection,
+                        ...updatedTocColor.beneficiaries,
+                        ...requestData.tocColor.beneficiaries
+                    },
+                    outcomes: {
+                        ...defaultSection,
+                        ...updatedTocColor.outcomes,
+                        ...requestData.tocColor.outcomes
+                    },
+                    externalFactors: {
+                        ...defaultSection,
+                        ...updatedTocColor.externalFactors,
+                        ...requestData.tocColor.externalFactors
+                    },
+                    evidenceLinks: {
+                        ...defaultSection,
+                        ...updatedTocColor.evidenceLinks,
+                        ...requestData.tocColor.evidenceLinks
+                    }
                 };
             }
 
@@ -194,6 +297,10 @@ export class ProjectService {
                 userId: requestData.userId,
                 projectId: requestData.projectId,
                 projectTitle: requestData.projectTitle,
+                status: requestData.status || existing.status,
+                type: 'project',
+                createdAt: existing.createdAt,
+                updatedAt: timestamp,
                 tocData: {
                     projectTitle: requestData.projectTitle,
                     bigPictureGoal: (tocData && tocData.hasOwnProperty('bigPictureGoal')) ? tocData.bigPictureGoal : existing.tocData.bigPictureGoal,
@@ -203,11 +310,7 @@ export class ProjectService {
                     activities: (tocData && tocData.hasOwnProperty('activities')) ? tocData.activities : existing.tocData.activities,
                     outcomes: (tocData && tocData.hasOwnProperty('outcomes')) ? tocData.outcomes : existing.tocData.outcomes,
                     externalFactors: (tocData && tocData.hasOwnProperty('externalFactors')) ? tocData.externalFactors : existing.tocData.externalFactors,
-                    evidenceLinks: (tocData && tocData.hasOwnProperty('evidenceLinks')) ? tocData.evidenceLinks : existing.tocData.evidenceLinks,
-                    status: requestData.status !== undefined ? requestData.status : existing.tocData.status,
-                    type: 'project',
-                    createdAt: existing.tocData.createdAt,
-                    updatedAt: timestamp
+                    evidenceLinks: (tocData && tocData.hasOwnProperty('evidenceLinks')) ? tocData.evidenceLinks : existing.tocData.evidenceLinks
                 },
                 tocColor: updatedTocColor
             };
@@ -218,12 +321,16 @@ export class ProjectService {
                 updatedDocument
             );
 
+            // Return data in flat ProjectData format
             return {
-                userId: updatedDocument.userId,
                 projectId: updatedDocument.projectId,
+                status: updatedDocument.status,
+                type: updatedDocument.type,
+                createdAt: updatedDocument.createdAt,
+                updatedAt: updatedDocument.updatedAt,
                 tocData: updatedDocument.tocData,
                 tocColor: updatedDocument.tocColor
-            } as ProjectResponse;
+            } as ProjectData;
 
         } catch (error) {
             console.error('Update project error:', error);
@@ -231,21 +338,35 @@ export class ProjectService {
         }
     }
 
-    static async listUserProjects(userId: string): Promise<ProjectResponse[]> {
+    static async listUserProjects(userId: string): Promise<ProjectData[]> {
         try {
             const { collection } = await this.getDatabase();
 
             const docs = await collection
                 .find({ userId: userId })
-                .sort({ 'tocData.createdAt': -1 })
+                .sort({ 'createdAt': -1 })
                 .toArray();
 
+            // Transform each document to match flat ProjectData structure
             return docs.map(doc => ({
-                userId: doc.userId,
                 projectId: doc.projectId,
-                tocData: doc.tocData,
-                tocColor: doc.tocColor || null
-            } as ProjectResponse));
+                status: doc.status,
+                type: doc.type,
+                createdAt: doc.createdAt,
+                updatedAt: doc.updatedAt,
+                tocData: {
+                    projectTitle: doc.tocData?.projectTitle || doc.projectTitle,
+                    bigPictureGoal: doc.tocData?.bigPictureGoal,
+                    projectAim: doc.tocData?.projectAim,
+                    objectives: doc.tocData?.objectives,
+                    beneficiaries: doc.tocData?.beneficiaries,
+                    activities: doc.tocData?.activities,
+                    outcomes: doc.tocData?.outcomes,
+                    externalFactors: doc.tocData?.externalFactors,
+                    evidenceLinks: doc.tocData?.evidenceLinks
+                },
+                tocColor: doc.tocColor || this.getDefaultTocColor()
+            } as ProjectData));
 
         } catch (error) {
             console.error('List projects error:', error);
@@ -253,50 +374,7 @@ export class ProjectService {
         }
     }
 
-    static async bulkCreateUpdateProjects(requestData: BulkCreateUpdateRequest): Promise<ProjectResponse[]> {
-        try {
-            const results: ProjectResponse[] = [];
-
-            for (const projectData of requestData.projects) {
-                try {
-                    if (projectData.projectId) {
-                        const updateRequest: UpdateProjectRequest = {
-                            userId: requestData.userId,
-                            projectId: projectData.projectId,
-                            projectTitle: projectData.projectTitle,
-                            ...projectData.projectData,
-                            tocColor: projectData.tocColor,
-                            updateName: true
-                        };
-
-                        const updated = await this.updateProject(updateRequest);
-                        results.push(updated);
-                    } else {
-                        const createRequest: CreateProjectRequest = {
-                            userId: requestData.userId,
-                            projectTitle: projectData.projectTitle,
-                            tocColor: projectData.tocColor,
-                            ...projectData.projectData
-                        };
-
-                        const created = await this.createProject(createRequest);
-                        results.push(created);
-                    }
-                } catch (error) {
-                    console.error(`Error processing project "${projectData.projectTitle}":`, error);
-                    const errorMessage = error instanceof Error ? error.message : String(error);
-                    throw new Error(`Failed to process project "${projectData.projectTitle}": ${errorMessage}`);
-                }
-            }
-
-            return results;
-        } catch (error) {
-            console.error('Bulk create/update error:', error);
-            throw error;
-        }
-    }
-
-    static async getProjects(requestData: GetProjectsRequest): Promise<ProjectResponse | ProjectResponse[]> {
+    static async getProjects(requestData: GetProjectsRequest): Promise<ProjectData | ProjectData[]> {
         try {
             if (requestData.projectId) {
                 const project = await this.getProjectById(requestData.userId, requestData.projectId);

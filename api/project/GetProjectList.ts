@@ -1,47 +1,35 @@
-// api/user/projectList.ts
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+// api/project/GetProjectList.ts - Refined
+import type { VercelResponse } from '@vercel/node';
+import { createHandler } from '../../services/utils/HandlerFactory';
 import { ResponseUtils } from '../../services/utils/ResponseUtils';
-import { CorsUtils } from '../../services/utils/CorsUtils';
 import { ProjectService } from '../../services/ProjectService';
-import { validateToken, AuthenticatedRequest } from '../../services/middleware/Auth';
+import { AuthenticatedRequest } from '../../services/middleware/Auth';
 
-async function getProjectList(req: AuthenticatedRequest, res: VercelResponse) {
-    CorsUtils.setCors(res);
-    if (CorsUtils.handleOptions(req, res)) return;
+const getProjectList = async (req: AuthenticatedRequest, res: VercelResponse) => {
+  // Get userId from JWT token (secure)
+  const userId = req.user.userId.toString();
 
-    if (req.method !== 'GET') {
-        return ResponseUtils.send(res, ResponseUtils.error('Method not allowed', 405));
-    }
+  // Get all projects for the user
+  const projects = await ProjectService.listUserProjects(userId);
 
-    try {
-        const { userId } = req.query;
+  // Extract only project names and IDs
+  const projectList = projects.map((project, index) => ({
+    projectId: project.projectId,
+    projectName: project.tocData?.projectTitle || `Project ${index + 1}`,
+  }));
 
-        // Validate required parameters
-        if (!userId || typeof userId !== 'string') {
-            return ResponseUtils.send(res, ResponseUtils.error('userId is required', 400));
-        }
+  // Sort by project name alphabetically
+  projectList.sort((a, b) => a.projectName.localeCompare(b.projectName));
 
-        // Get all projects for the user
-        const projects = await ProjectService.listUserProjects(userId);
+  const result = {
+    projects: projectList,
+    count: projectList.length
+  };
 
-        // Extract only project names and IDs
-        const projectList = projects.map((project, index) => ({
-            projectId: project.projectId,
-            projectName: project.tocData?.projectTitle || `Project ${index + 1}`,
-        }));
+  ResponseUtils.send(res, ResponseUtils.success(result, 'Project list retrieved successfully'));
+};
 
-        // Sort by project name alphabetically
-        projectList.sort((a, b) => a.projectName.localeCompare(b.projectName));
-
-        return ResponseUtils.send(res, ResponseUtils.success({
-            projects: projectList,
-            count: projectList.length
-        }, 'Project list retrieved successfully'));
-
-    } catch (err) {
-        console.error('API Error:', err);
-        return ResponseUtils.send(res, ResponseUtils.error('Failed to retrieve project list', 500));
-    }
-}
-
-export default validateToken(getProjectList);
+export default createHandler(getProjectList, {
+  requireAuth: true,
+  allowedMethods: ['GET']
+});

@@ -1,3 +1,5 @@
+export {};
+
 //// api/user/userResetPassword.ts
 //import type { VercelRequest, VercelResponse } from '@vercel/node';
 //import { Resend } from 'resend';

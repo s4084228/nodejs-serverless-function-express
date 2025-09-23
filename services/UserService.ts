@@ -2,34 +2,15 @@
 import {
     findUserByEmail,
     checkUsernameExists as checkUsernameInDB,
-    updateUserDetails,
-    User,
-    UserProfile,
-    CompleteUser
-} from './Supabase';
-import ValidationUtils from './ValidationUtils';
-import bcrypt from 'bcrypt';
-
-export interface CreateUserData {
-    email: string;
-    password: string;
-    username?: string;
-    firstName?: string;
-    lastName?: string;
-    organisation?: string;
-}
-
-export interface UserResponse {
-    user_id: number;
-    email: string;
-    username?: string;
-    first_name?: string;
-    last_name?: string;
-    organisation?: string;
-    avatar_url?: string;
-    display_name: string;
-    created_at: Date;
-}
+    updateUserDetails
+} from './utils/Supabase';
+import {UserProfile} from './dto/UserProfile';
+import {CompleteUser} from './dto/CompleteUser';
+import {User} from './dto/User';
+import {UserData} from './entities/user/UserData';
+import UserResponse from '../services/entities/user/UserResponse';
+import ValidationUtils from './validators/ValidationUtils';  
+import { getUserProfile as getSupabaseUserProfile } from './utils/Supabase';
 
 // Check if email exists
 export async function checkEmailExists(email: string): Promise<boolean> {
@@ -52,8 +33,21 @@ export async function checkUsernameExists(username: string): Promise<boolean> {
     }
 }
 
+// Get User Details
+export async function getUserProfile(email: string): Promise<UserResponse | null> {
+    try {
+        const user = await getSupabaseUserProfile(email);
+        if (!user) return null;
+        
+        return user; // Already in the correct UserResponse format
+    } catch (error) {
+        console.error('Error getting user profile:', error);
+        throw new Error('Failed to get user profile');
+    }
+}
+
 // Create new user with profile
-export async function createUser(userData: CreateUserData): Promise<UserResponse> {
+export async function createUser(userData: UserData): Promise<UserResponse> {
     const { email, password, username, firstName, lastName, organisation } = userData;
 
     try {
@@ -117,15 +111,15 @@ export async function createUser(userData: CreateUserData): Promise<UserResponse
             : completeUser.username || completeUser.email;
 
         return {
-            user_id: completeUser.user_id,
+            userId: completeUser.user_id,
             email: completeUser.email,
             username: completeUser.username,
-            first_name: profile?.first_name,
-            last_name: profile?.last_name,
+            firstName: profile?.first_name,
+            lastName: profile?.last_name,
             organisation: profile?.organisation,
-            avatar_url: profile?.avatar_url,
-            display_name: displayName || completeUser.email,
-            created_at: completeUser.created_at
+            avatarUrl: profile?.avatar_url,
+            displayName: displayName || completeUser.email,
+            createdAt: completeUser.created_at
         };
 
     } catch (error) {
