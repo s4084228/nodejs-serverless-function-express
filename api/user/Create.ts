@@ -7,8 +7,8 @@ import { createUser, checkEmailExists, checkUsernameExists } from '../../service
 
 
 const registerUser = async (req: VercelRequest, res: VercelResponse) => {
-  const { email, password, username, firstName, lastName, organisation } = req.body;
-
+  const { email, password, username, firstName, lastName, organisation, acceptTandC,newsLetterSubs } = req.body;
+ 
   // Check if email already exists
   const emailExists = await checkEmailExists(email);
   if (emailExists) {
@@ -32,8 +32,11 @@ const registerUser = async (req: VercelRequest, res: VercelResponse) => {
     username,
     firstName,
     lastName,
-    organisation
+    organisation,
+    acceptTandC,
+    newsLetterSubs
   });
+
 
   ResponseUtils.send(res, ResponseUtils.created(newUser, 'User registered successfully'));
   return; // Just return, don't return the response

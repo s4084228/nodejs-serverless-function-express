@@ -6,4 +6,6 @@ export interface UserData {
     lastName?: string;
     organisation?: string;
     avatarURL?:string;
+    acceptTandC?:boolean;
+    newsLetterSubs?:boolean;
 }
