@@ -21,8 +21,9 @@ export const createHandler = (
   const wrappedHandler = async (req: VercelRequest, res: VercelResponse) => {
     try {
       // 1. CORS (always first)
-      CorsUtils.setCors(res);
+      CorsUtils.setCors(res,req);
       if (CorsUtils.handleOptions(req, res)) return;
+
 
       // 2. Method validation
       if (allowedMethods.length > 0 && !allowedMethods.includes(req.method!)) {
