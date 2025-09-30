@@ -7,7 +7,7 @@ import {
     findUserByEmail,
     deleteUser as deleteUserFromDB,
     deleteUserAvatar
-} from '../../services/utils/Supabase';
+} from '../../services/utils/supabaseUtils/UserUtils';
 import { AuthenticatedRequest } from '../../services/middleware/Auth';
 
 const deleteUser = async (req: AuthenticatedRequest, res: VercelResponse) => {

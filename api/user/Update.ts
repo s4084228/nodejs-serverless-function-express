@@ -9,7 +9,7 @@ import {
     updateUserDetails,
     checkUsernameExists,
     getUserProfile
-} from '../../services/utils/Supabase';
+} from '../../services/utils/supabaseUtils/UserUtils';
 import { AuthenticatedRequest } from '../../services/middleware/Auth';
 
 const updateUser = async (req: AuthenticatedRequest, res: VercelResponse) => {
