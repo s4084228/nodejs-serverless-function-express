@@ -3,14 +3,14 @@ import {
     findUserByEmail,
     checkUsernameExists as checkUsernameInDB,
     updateUserDetails
-} from './utils/Supabase';
+} from './utils/supabaseUtils/UserUtils';
 import {UserProfile} from './dto/UserProfile';
 import {CompleteUser} from './dto/CompleteUser';
 import {User} from './dto/User';
 import {UserData} from './entities/user/UserData';
 import UserResponse from '../services/entities/user/UserResponse';
-import ValidationUtils from './validators/ValidationUtils';  
-import { getUserProfile as getSupabaseUserProfile } from './utils/Supabase';
+import ValidationUtils from './validators/ValidationUtils';
+import { getUserProfile as getSupabaseUserProfile } from './utils/supabaseUtils/UserUtils';
 import { UserTermsAcceptance } from './dto/UserTermsAcceptance';
 import { UserNewsLetterSubs } from './dto/UserNewsLetterSubs';
 import { createTermsAcceptance, hasAcceptedTerms } from './utils/supabaseUtils/UserTermsUtils';
@@ -70,7 +70,8 @@ export async function createUser(userData: UserData): Promise<UserResponse> {
                 email: email.toLowerCase(),
                 username: username || null,
                 password_hash: passwordHash,
-                created_at: new Date().toISOString()
+                created_at: new Date().toISOString(),
+                user_role: "user"
             })
             .select('*')
             .single();
@@ -150,7 +151,8 @@ export async function createUser(userData: UserData): Promise<UserResponse> {
             organisation: profile?.organisation,
             avatarUrl: profile?.avatar_url,
             displayName: displayName || completeUser.email,
-            createdAt: completeUser.created_at
+            createdAt: completeUser.created_at,
+            userRole: completeUser.user_role
         };
 
     } catch (error) {
@@ -279,7 +281,7 @@ export async function updateUserPreferences(
         } else if (newsLetterSubs === false) {
             // Unsubscribe from newsletter
             try {
-                const { unsubscribeFromNewsletter } = await import('./NewsletterUtils');
+                const { unsubscribeFromNewsletter } = await import('./utils/supabaseUtils/NewsletterUtils');
                 await unsubscribeFromNewsletter(email);
             } catch (error) {
                 console.error('Failed to unsubscribe from newsletter:', error);
@@ -299,8 +301,8 @@ export async function getUserPreferences(email: string): Promise<{
     isSubscribedToNewsletter: boolean;
 }> {
     try {
-        const { hasAcceptedTerms } = await import('./UserTermsUtils');
-        const { isSubscribedToNewsletter } = await import('./NewsletterUtils');
+        const { hasAcceptedTerms } = await import('./utils/supabaseUtils/UserTermsUtils');
+        const { isSubscribedToNewsletter } = await import('./utils/supabaseUtils/NewsletterUtils');
 
         const [termsAccepted, newsletterSubscribed] = await Promise.all([
             hasAcceptedTerms(email),

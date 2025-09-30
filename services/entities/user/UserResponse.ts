@@ -8,4 +8,5 @@ export default interface UserResponse {
     avatarUrl?: string;
     displayName: string;
     createdAt: Date;
+    userRole: string;
 }

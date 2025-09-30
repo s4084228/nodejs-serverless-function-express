@@ -14,7 +14,7 @@ import {
     findValidResetToken,
     updateUserPassword,
     deleteResetToken
-} from './utils/Supabase';  // Fixed casing - use 'Supabase' not 'supabase'
+} from './utils/supabaseUtils/UserUtils';  // Fixed casing - use 'Supabase' not 'supabase'
 
 export class PasswordResetService {
     private static transporter = nodemailer.createTransport({

@@ -5,7 +5,9 @@ import * as jwt from 'jsonwebtoken';
 import { createHandler } from '../../services/utils/HandlerFactory';
 import { Validators } from '../../services/validators';
 import { ResponseUtils } from '../../services/utils/ResponseUtils';
-import { findUserByEmail } from '../../services/utils/Supabase';
+import { findUserByEmail } from '../../services/utils/supabaseUtils/UserUtils';
+
+import { createUserSession } from '../../services/utils/supabaseUtils/SessionUtils'; 
 
 function signToken(user: { user_id: number; email: string }) {
   return jwt.sign(
@@ -34,7 +36,8 @@ const loginUser = async (req: VercelRequest, res: VercelResponse) => {
   if (!isValidPassword) {
     ResponseUtils.send(res, ResponseUtils.unauthorized('Invalid email or password'));
     return;
-  }
+    }
+    await createUserSession(user.user_id);
 
   // Generate JWT token
   const token = signToken(user);
@@ -51,7 +54,8 @@ const loginUser = async (req: VercelRequest, res: VercelResponse) => {
     avatarUrl: profile?.avatar_url,
     displayName: profile
       ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
-      : user.username || user.email
+          : user.username || user.email,
+      userRole: user.user_role
   };
 
   ResponseUtils.send(res, ResponseUtils.success({
