@@ -2,7 +2,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createHandler } from '../../services/utils/HandlerFactory';
 import { ResponseUtils } from '../../services/utils/ResponseUtils';
-import { createNewSubscription } from '../../services/SubscriptionService';
+import { createOrUpdateSubscription } from '../../services/SubscriptionService';
 
 const createSubscription = async (req: VercelRequest, res: VercelResponse) => {
     const {
@@ -17,7 +17,7 @@ const createSubscription = async (req: VercelRequest, res: VercelResponse) => {
     } = req.body;
 
     try {
-        const subscription = await createNewSubscription({
+        const subscription = await createOrUpdateSubscription({
             subscriptionId,  
             email,
             planId,

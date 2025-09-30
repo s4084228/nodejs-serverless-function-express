@@ -35,4 +35,5 @@ export interface UpdateSubscriptionDto {
     expires_at?: string | null;
     auto_renew?: boolean;
     updated_at?: string;
+    subscription_ID: string;
 }

@@ -1,37 +1,26 @@
 // services/SubscriptionService.ts - Business logic for subscription management
 
 import {
-    //createPlan,
-    //findPlanById,
-    //findPlanByName,
-    //getAllPlans,
-    //updatePlan,
-    //deletePlan,
     createSubscription,
     findSubscriptionById,
     findSubscriptionsByEmail,
     findActiveSubscriptionByEmail,
-    updateSubscription,
-    cancelSubscription,
-    deleteSubscription,
-    createInvoice,
-    findInvoiceById,
-    findInvoicesByEmail,
-    findInvoicesBySubscription,
-    updateInvoice,
-    deleteInvoice
+    updateSubscription
 } from './utils/supabaseUtils/SubscriptionUtils';
-
 
 import { CreateSubscriptionDto, UpdateSubscriptionDto } from './dto/Subscription';
 import { CreateInvoiceDto, UpdateInvoiceDto } from './dto/Invoice';
 import { SubscriptionData } from './entities/subscription/SubscriptionData';
 import { InvoiceData } from './entities/subscription/InvoiceData';
 
-// Plan Services
-
 // Subscription Services
-export async function createNewSubscription(subscriptionData: {
+
+/**
+ * Create or Update Subscription
+ * - If email already has an active subscription, update it
+ * - Otherwise, create a new subscription
+ */
+export async function createOrUpdateSubscription(subscriptionData: {
     subscriptionId: string;
     email: string;
     planId: string;
@@ -42,37 +31,80 @@ export async function createNewSubscription(subscriptionData: {
     autoRenew?: boolean;
 }): Promise<SubscriptionData> {
     try {
-        const dto: CreateSubscriptionDto = {
-            subscription_ID: subscriptionData.subscriptionId,
-            email: subscriptionData.email.toLowerCase(),
-            plan_ID: subscriptionData.planId,
-            status: subscriptionData.status || 'active',
-            start_date: subscriptionData.startDate || new Date().toISOString(),
-            renewal_date: subscriptionData.renewalDate || null,
-            expires_at: subscriptionData.expiresAt || null,
-            auto_renew: subscriptionData.autoRenew ?? true
-        };
+        const normalizedEmail = subscriptionData.email.toLowerCase();
 
-        const subscription = await createSubscription(dto);
-        const subscription2 = await findSubscriptionById(subscription.subscription_ID);
+        // Check if user already has a subscription
+        const existingSubscription = await findActiveSubscriptionByEmail(normalizedEmail);
 
-        if (!subscription2) {
-            throw new Error('Failed to retrieve created subscription');
+        if (existingSubscription) {
+            // UPDATE existing subscription
+            console.log(`Updating existing subscription for email: ${normalizedEmail}`);
+
+            const updateDto: UpdateSubscriptionDto = {
+                subscription_ID: subscriptionData.subscriptionId,
+                plan_ID: subscriptionData.planId,
+                status: subscriptionData.status || 'active',
+                renewal_date: subscriptionData.renewalDate || null,
+                expires_at: subscriptionData.expiresAt || null,
+                auto_renew: subscriptionData.autoRenew ?? true
+            };
+
+            await updateSubscription(existingSubscription.subscription_ID, updateDto);
+
+            // Fetch updated subscription
+            const updatedSubscription = await findSubscriptionById(existingSubscription.subscription_ID);
+
+            if (!updatedSubscription) {
+                throw new Error('Failed to retrieve updated subscription');
+            }
+
+            return {
+                subscriptionId: updatedSubscription.subscription_ID,
+                email: updatedSubscription.email,
+                planId: updatedSubscription.plan_ID,
+                status: updatedSubscription.status,
+                startDate: updatedSubscription.start_date,
+                renewalDate: updatedSubscription.renewal_date,
+                expiresAt: updatedSubscription.expires_at,
+                autoRenew: updatedSubscription.auto_renew,
+                updatedAt: updatedSubscription.updated_at
+            };
+        } else {
+            // CREATE new subscription
+            console.log(`Creating new subscription for email: ${normalizedEmail}`);
+
+            const createDto: CreateSubscriptionDto = {
+                subscription_ID: subscriptionData.subscriptionId,
+                email: normalizedEmail,
+                plan_ID: subscriptionData.planId,
+                status: subscriptionData.status || 'active',
+                start_date: subscriptionData.startDate || new Date().toISOString(),
+                renewal_date: subscriptionData.renewalDate || null,
+                expires_at: subscriptionData.expiresAt || null,
+                auto_renew: subscriptionData.autoRenew ?? true
+            };
+
+            const newSubscription = await createSubscription(createDto);
+            const subscription = await findSubscriptionById(newSubscription.subscription_ID);
+
+            if (!subscription) {
+                throw new Error('Failed to retrieve created subscription');
+            }
+
+            return {
+                subscriptionId: subscription.subscription_ID,
+                email: subscription.email,
+                planId: subscription.plan_ID,
+                status: subscription.status,
+                startDate: subscription.start_date,
+                renewalDate: subscription.renewal_date,
+                expiresAt: subscription.expires_at,
+                autoRenew: subscription.auto_renew,
+                updatedAt: subscription.updated_at
+            };
         }
-
-        return {
-            subscriptionId: subscription2.subscription_ID,
-            email: subscription2.email,
-            planId: subscription2.plan_ID,
-            status: subscription2.status,
-            startDate: subscription2.start_date,
-            renewalDate: subscription2.renewal_date,
-            expiresAt: subscription2.expires_at,
-            autoRenew: subscription2.auto_renew,
-            updatedAt: subscription2.updated_at
-        };
     } catch (error) {
-        console.error('Error creating subscription:', error);
+        console.error('Error creating/updating subscription:', error);
         throw error;
     }
 }
@@ -86,9 +118,6 @@ export async function getSubscriptionById(subscriptionId: string): Promise<Subsc
             subscriptionId: subscription.subscription_ID,
             email: subscription.email,
             planId: subscription.plan_ID,
-            //planName: subscription.plan.name,
-           // planPrice: subscription.plan.price_cents,
-            //billingInterval: subscription.plan.billing_interval,
             status: subscription.status,
             startDate: subscription.start_date,
             renewalDate: subscription.renewal_date,
@@ -110,9 +139,6 @@ export async function getUserSubscriptions(email: string): Promise<SubscriptionD
             subscriptionId: sub.subscription_ID,
             email: sub.email,
             planId: sub.plan_ID,
-            //planName: sub.plan.name,
-            //planPrice: sub.plan.price_cents,
-            //billingInterval: sub.plan.billing_interval,
             status: sub.status,
             startDate: sub.start_date,
             renewalDate: sub.renewal_date,
@@ -135,9 +161,6 @@ export async function getActiveUserSubscription(email: string): Promise<Subscrip
             subscriptionId: subscription.subscription_ID,
             email: subscription.email,
             planId: subscription.plan_ID,
-            //planName: subscription.plan.name,
-            //planPrice: subscription.plan.price_cents,
-            //billingInterval: subscription.plan.billing_interval,
             status: subscription.status,
             startDate: subscription.start_date,
             renewalDate: subscription.renewal_date,
@@ -151,90 +174,8 @@ export async function getActiveUserSubscription(email: string): Promise<Subscrip
     }
 }
 
-export async function updateExistingSubscription(
-    subscriptionId: string,
-    updates: {
-        status?: 'active' | 'cancelled' | 'expired' | 'pending';
-        planId?: string;
-        renewalDate?: string;
-        expiresAt?: string;
-        autoRenew?: boolean;
-    }
-): Promise<SubscriptionData> {
-    try {
-        const dto: UpdateSubscriptionDto = {};
-        if (updates.status !== undefined) dto.status = updates.status;
-        if (updates.planId !== undefined) dto.plan_ID = updates.planId;
-        if (updates.renewalDate !== undefined) dto.renewal_date = updates.renewalDate;
-        if (updates.expiresAt !== undefined) dto.expires_at = updates.expiresAt;
-        if (updates.autoRenew !== undefined) dto.auto_renew = updates.autoRenew;
-
-        await updateSubscription(subscriptionId, dto);
-        const subscription = await findSubscriptionById(subscriptionId);
-
-        if (!subscription) {
-            throw new Error('Failed to retrieve updated subscription');
-        }
-
-        return {
-            subscriptionId: subscription.subscription_ID,
-            email: subscription.email,
-            planId: subscription.plan_ID,
-            //planName: subscription.plan.name,
-            //planPrice: subscription.plan.price_cents,
-            //billingInterval: subscription.plan.billing_interval,
-            status: subscription.status,
-            startDate: subscription.start_date,
-            renewalDate: subscription.renewal_date,
-            expiresAt: subscription.expires_at,
-            autoRenew: subscription.auto_renew,
-            updatedAt: subscription.updated_at
-        };
-    } catch (error) {
-        console.error('Error updating subscription:', error);
-        throw error;
-    }
-}
-
-export async function cancelUserSubscription(subscriptionId: string): Promise<SubscriptionData> {
-    try {
-        await cancelSubscription(subscriptionId);
-        const subscription = await findSubscriptionById(subscriptionId);
-
-        if (!subscription) {
-            throw new Error('Failed to retrieve cancelled subscription');
-        }
-
-        return {
-            subscriptionId: subscription.subscription_ID,
-            email: subscription.email,
-            planId: subscription.plan_ID,
-            //planName: subscription.plan.name,
-            //planPrice: subscription.plan.price_cents,
-            //billingInterval: subscription.plan.billing_interval,
-            status: subscription.status,
-            startDate: subscription.start_date,
-            renewalDate: subscription.renewal_date,
-            expiresAt: subscription.expires_at,
-            autoRenew: subscription.auto_renew,
-            updatedAt: subscription.updated_at
-        };
-    } catch (error) {
-        console.error('Error cancelling subscription:', error);
-        throw error;
-    }
-}
-
-export async function removeSubscription(subscriptionId: string): Promise<void> {
-    try {
-        await deleteSubscription(subscriptionId);
-    } catch (error) {
-        console.error('Error deleting subscription:', error);
-        throw error;
-    }
-}
-
 // Invoice Services
+/*
 export async function createNewInvoice(invoiceData: {
     subscriptionId: string;
     email: string;
@@ -370,57 +311,4 @@ export async function getSubscriptionInvoices(subscriptionId: string): Promise<I
         console.error('Error getting subscription invoices:', error);
         throw error;
     }
-}
-
-export async function updateExistingInvoice(
-    invoiceId: number,
-    updates: {
-        status?: 'paid' | 'pending' | 'overdue' | 'cancelled';
-        pdfUrl?: string;
-        isPublic?: boolean;
-    }
-): Promise<InvoiceData> {
-    try {
-        const dto: UpdateInvoiceDto = {};
-        if (updates.status !== undefined) dto.status = updates.status;
-        if (updates.pdfUrl !== undefined) dto.pdf_url = updates.pdfUrl;
-        if (updates.isPublic !== undefined) dto.is_public = updates.isPublic;
-
-        await updateInvoice(invoiceId, dto);
-        const invoice = await findInvoiceById(invoiceId);
-
-        if (!invoice) {
-            throw new Error('Failed to retrieve updated invoice');
-        }
-
-        return {
-            invoiceId: invoice.invoice_ID,
-            subscriptionId: invoice.subscription_ID,
-            email: invoice.email,
-            amount: invoice.amount_cents / 100,
-            amountCents: invoice.amount_cents,
-            currency: invoice.currency,
-            periodStart: invoice.period_start,
-            periodEnd: invoice.period_end,
-            issuedAt: invoice.issued_at,
-            dueAt: invoice.due_at,
-            status: invoice.status,
-            pdfUrl: invoice.pdf_url,
-            isPublic: invoice.is_public,
-            planName: invoice.subscription.plan.name,
-            planPrice: invoice.subscription.plan.price_cents
-        };
-    } catch (error) {
-        console.error('Error updating invoice:', error);
-        throw error;
-    }
-}
-
-export async function removeInvoice(invoiceId: number): Promise<void> {
-    try {
-        await deleteInvoice(invoiceId);
-    } catch (error) {
-        console.error('Error deleting invoice:', error);
-        throw error;
-    }
-}
+}*/

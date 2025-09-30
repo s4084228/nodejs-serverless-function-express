@@ -2,19 +2,12 @@
 
 import { createClient } from '@supabase/supabase-js';
 import {
-    Plan,
-    CreatePlanDto,
-    UpdatePlanDto
-} from '../../dto/Plan';
-import {
     Subscription,
-    SubscriptionWithPlan,
     CreateSubscriptionDto,
     UpdateSubscriptionDto
 } from '../../dto/Subscription';
 import {
     Invoice,
-    InvoiceWithSubscription,
     CreateInvoiceDto,
     UpdateInvoiceDto
 } from '../../dto/Invoice';
@@ -23,7 +16,6 @@ const supabase = createClient(
     process.env.TOC_SUPABASE_URL!,
     process.env.TOC_SUPABASE_SERVICE_ROLE_KEY!
 );
-
 
 // Subscription operations
 export async function createSubscription(subscriptionData: CreateSubscriptionDto): Promise<Subscription> {
@@ -52,7 +44,7 @@ export async function createSubscription(subscriptionData: CreateSubscriptionDto
     }
 }
 
-export async function findSubscriptionById(subscriptionId: string): Promise<SubscriptionWithPlan | null> {
+export async function findSubscriptionById(subscriptionId: string): Promise<Subscription | null> {
     try {
         const { data, error } = await supabase
             .from('Subscription')
@@ -74,14 +66,11 @@ export async function findSubscriptionById(subscriptionId: string): Promise<Subs
     }
 }
 
-export async function findSubscriptionsByEmail(email: string): Promise<SubscriptionWithPlan[]> {
+export async function findSubscriptionsByEmail(email: string): Promise<Subscription[]> {
     try {
         const { data, error } = await supabase
             .from('Subscription')
-            .select(`
-        *,
-        plan:Plan(*)
-      `)
+            .select('*')
             .eq('email', email)
             .order('start_date', { ascending: false });
 
@@ -93,14 +82,11 @@ export async function findSubscriptionsByEmail(email: string): Promise<Subscript
     }
 }
 
-export async function findActiveSubscriptionByEmail(email: string): Promise<SubscriptionWithPlan | null> {
+export async function findActiveSubscriptionByEmail(email: string): Promise<Subscription | null> {
     try {
         const { data, error } = await supabase
             .from('Subscription')
-            .select(`
-        *,
-        plan:Plan(*)
-      `)
+            .select('*')
             .eq('email', email)
             .eq('status', 'active')
             .single();
@@ -128,6 +114,7 @@ export async function updateSubscription(
             updated_at: new Date().toISOString()
         };
 
+        if (updates.subscription_ID !== undefined) updateData.subscription_ID = updates.subscription_ID;
         if (updates.status !== undefined) updateData.status = updates.status;
         if (updates.plan_ID !== undefined) updateData.plan_ID = updates.plan_ID;
         if (updates.renewal_date !== undefined) updateData.renewal_date = updates.renewal_date;
@@ -213,17 +200,11 @@ export async function createInvoice(invoiceData: CreateInvoiceDto): Promise<Invo
     }
 }
 
-export async function findInvoiceById(invoiceId: number): Promise<InvoiceWithSubscription | null> {
+export async function findInvoiceById(invoiceId: number): Promise<Invoice | null> {
     try {
         const { data, error } = await supabase
             .from('Invoice')
-            .select(`
-        *,
-        subscription:Subscription(
-          *,
-          plan:Plan(*)
-        )
-      `)
+            .select('*')
             .eq('invoice_ID', invoiceId)
             .single();
 
@@ -241,17 +222,11 @@ export async function findInvoiceById(invoiceId: number): Promise<InvoiceWithSub
     }
 }
 
-export async function findInvoicesByEmail(email: string): Promise<InvoiceWithSubscription[]> {
+export async function findInvoicesByEmail(email: string): Promise<Invoice[]> {
     try {
         const { data, error } = await supabase
             .from('Invoice')
-            .select(`
-        *,
-        subscription:Subscription(
-          *,
-          plan:Plan(*)
-        )
-      `)
+            .select('*')
             .eq('email', email)
             .order('issued_at', { ascending: false });
 
