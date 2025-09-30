@@ -53,6 +53,13 @@ export class ResponseUtils {
     return this.success(data, message, 200);
   }
 
+    static forbidden(message = 'Access forbidden'): ApiResponse {
+        return this.error(message, 403);
+    }
+    static serverError(message = 'Internal Server error'): ApiResponse {
+        return this.error(message, 403);
+    }
+
   static handleServiceError(error: any): ApiResponse {
     let statusCode = 500;
     let errorMessage = 'Internal server error';

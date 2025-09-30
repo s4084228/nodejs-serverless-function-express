@@ -36,11 +36,23 @@ export async function createSubscription(subscriptionData: CreateSubscriptionDto
             .select()
             .single();
 
-        if (error) throw error;
+        if (error) {
+            // Preserve the original error with all its details
+            console.error('Supabase error creating subscription:', error);
+
+            // Create a more detailed error object that includes Supabase error info
+            const detailedError: any = new Error(error.message || 'Failed to create subscription');
+            detailedError.code = error.code;
+            detailedError.details = error.details;
+            detailedError.hint = error.hint;
+
+            throw detailedError;
+        }
+
         return data;
     } catch (error) {
-        console.error('Error creating subscription:', error);
-        throw new Error('Failed to create subscription');
+        // Re-throw the error without modifying it
+        throw error;
     }
 }
 

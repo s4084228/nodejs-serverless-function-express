@@ -9,9 +9,7 @@ import {
 } from './utils/supabaseUtils/SubscriptionUtils';
 
 import { CreateSubscriptionDto, UpdateSubscriptionDto } from './dto/Subscription';
-import { CreateInvoiceDto, UpdateInvoiceDto } from './dto/Invoice';
 import { SubscriptionData } from './entities/subscription/SubscriptionData';
-import { InvoiceData } from './entities/subscription/InvoiceData';
 
 // Subscription Services
 
@@ -131,24 +129,62 @@ export async function getSubscriptionById(subscriptionId: string): Promise<Subsc
     }
 }
 
-export async function getUserSubscriptions(email: string): Promise<SubscriptionData[]> {
+export async function getUserSubscription(email: string): Promise<SubscriptionData> {
     try {
         const subscriptions = await findSubscriptionsByEmail(email.toLowerCase());
 
-        return subscriptions.map(sub => ({
-            subscriptionId: sub.subscription_ID,
-            email: sub.email,
-            planId: sub.plan_ID,
-            status: sub.status,
-            startDate: sub.start_date,
-            renewalDate: sub.renewal_date,
-            expiresAt: sub.expires_at,
-            autoRenew: sub.auto_renew,
-            updatedAt: sub.updated_at
-        }));
+        // Check if user has any subscriptions
+        if (!subscriptions || subscriptions.length === 0) {
+            // Return free plan with null data if no subscription exists
+            return {
+                subscriptionId: "",
+                email: email.toLowerCase(),
+                planId: 'free',
+                status: 'active',
+                startDate: "",
+                renewalDate: null,
+                expiresAt: null,
+                autoRenew: false,
+                updatedAt: ""
+            };
+        }
+
+        // Try to find an active subscription first
+        const activeSubscription = subscriptions.find(sub => sub.status === 'active');
+
+        // Use active subscription if found, otherwise use the most recent one
+        const subscription = activeSubscription || subscriptions.sort((a, b) =>
+            new Date(b.updated_at || b.start_date).getTime() -
+            new Date(a.updated_at || a.start_date).getTime()
+        )[0];
+
+        return {
+            subscriptionId: subscription.subscription_ID,
+            email: subscription.email,
+            planId: subscription.plan_ID,
+            status: subscription.status,
+            startDate: subscription.start_date,
+            renewalDate: subscription.renewal_date,
+            expiresAt: subscription.expires_at,
+            autoRenew: subscription.auto_renew,
+            updatedAt: subscription.updated_at
+        };
     } catch (error) {
-        console.error('Error getting user subscriptions:', error);
+        console.error('Error getting user subscription:', error);
         throw error;
+
+        // Return free plan on error
+        //return {
+        //    subscriptionId: "",
+        //    email: email.toLowerCase(),
+        //    planId: 'free',
+        //    status: '',
+        //    startDate: "",
+        //    renewalDate: null,
+        //    expiresAt: null,
+        //    autoRenew: false,
+        //    updatedAt: ""
+        //};
     }
 }
 
@@ -174,141 +210,3 @@ export async function getActiveUserSubscription(email: string): Promise<Subscrip
     }
 }
 
-// Invoice Services
-/*
-export async function createNewInvoice(invoiceData: {
-    subscriptionId: string;
-    email: string;
-    amountCents: number;
-    currency: string;
-    periodStart?: string;
-    periodEnd?: string;
-    dueAt?: string;
-    status: 'paid' | 'pending' | 'overdue' | 'cancelled';
-    pdfUrl?: string;
-    isPublic?: boolean;
-}): Promise<InvoiceData> {
-    try {
-        const dto: CreateInvoiceDto = {
-            subscription_ID: invoiceData.subscriptionId,
-            email: invoiceData.email.toLowerCase(),
-            amount_cents: invoiceData.amountCents,
-            currency: invoiceData.currency,
-            period_start: invoiceData.periodStart || null,
-            period_end: invoiceData.periodEnd || null,
-            issued_at: new Date().toISOString(),
-            due_at: invoiceData.dueAt || null,
-            status: invoiceData.status,
-            pdf_url: invoiceData.pdfUrl || null,
-            is_public: invoiceData.isPublic ?? false
-        };
-
-        const invoice = await createInvoice(dto);
-        const invoiceWithDetails = await findInvoiceById(invoice.invoice_ID);
-
-        if (!invoiceWithDetails) {
-            throw new Error('Failed to retrieve created invoice');
-        }
-
-        return {
-            invoiceId: invoiceWithDetails.invoice_ID,
-            subscriptionId: invoiceWithDetails.subscription_ID,
-            email: invoiceWithDetails.email,
-            amount: invoiceWithDetails.amount_cents / 100,
-            amountCents: invoiceWithDetails.amount_cents,
-            currency: invoiceWithDetails.currency,
-            periodStart: invoiceWithDetails.period_start,
-            periodEnd: invoiceWithDetails.period_end,
-            issuedAt: invoiceWithDetails.issued_at,
-            dueAt: invoiceWithDetails.due_at,
-            status: invoiceWithDetails.status,
-            pdfUrl: invoiceWithDetails.pdf_url,
-            isPublic: invoiceWithDetails.is_public,
-            planName: invoiceWithDetails.subscription.plan.name,
-            planPrice: invoiceWithDetails.subscription.plan.price_cents
-        };
-    } catch (error) {
-        console.error('Error creating invoice:', error);
-        throw error;
-    }
-}
-
-export async function getInvoiceById(invoiceId: number): Promise<InvoiceData | null> {
-    try {
-        const invoice = await findInvoiceById(invoiceId);
-        if (!invoice) return null;
-
-        return {
-            invoiceId: invoice.invoice_ID,
-            subscriptionId: invoice.subscription_ID,
-            email: invoice.email,
-            amount: invoice.amount_cents / 100,
-            amountCents: invoice.amount_cents,
-            currency: invoice.currency,
-            periodStart: invoice.period_start,
-            periodEnd: invoice.period_end,
-            issuedAt: invoice.issued_at,
-            dueAt: invoice.due_at,
-            status: invoice.status,
-            pdfUrl: invoice.pdf_url,
-            isPublic: invoice.is_public,
-            planName: invoice.subscription.plan.name,
-            planPrice: invoice.subscription.plan.price_cents
-        };
-    } catch (error) {
-        console.error('Error getting invoice:', error);
-        throw error;
-    }
-}
-
-export async function getUserInvoices(email: string): Promise<InvoiceData[]> {
-    try {
-        const invoices = await findInvoicesByEmail(email.toLowerCase());
-
-        return invoices.map(inv => ({
-            invoiceId: inv.invoice_ID,
-            subscriptionId: inv.subscription_ID,
-            email: inv.email,
-            amount: inv.amount_cents / 100,
-            amountCents: inv.amount_cents,
-            currency: inv.currency,
-            periodStart: inv.period_start,
-            periodEnd: inv.period_end,
-            issuedAt: inv.issued_at,
-            dueAt: inv.due_at,
-            status: inv.status,
-            pdfUrl: inv.pdf_url,
-            isPublic: inv.is_public,
-            planName: inv.subscription.plan.name,
-            planPrice: inv.subscription.plan.price_cents
-        }));
-    } catch (error) {
-        console.error('Error getting user invoices:', error);
-        throw error;
-    }
-}
-
-export async function getSubscriptionInvoices(subscriptionId: string): Promise<InvoiceData[]> {
-    try {
-        const invoices = await findInvoicesBySubscription(subscriptionId);
-
-        return invoices.map(inv => ({
-            invoiceId: inv.invoice_ID,
-            subscriptionId: inv.subscription_ID,
-            email: inv.email,
-            amount: inv.amount_cents / 100,
-            amountCents: inv.amount_cents,
-            currency: inv.currency,
-            periodStart: inv.period_start,
-            periodEnd: inv.period_end,
-            issuedAt: inv.issued_at,
-            dueAt: inv.due_at,
-            status: inv.status,
-            pdfUrl: inv.pdf_url,
-            isPublic: inv.is_public
-        }));
-    } catch (error) {
-        console.error('Error getting subscription invoices:', error);
-        throw error;
-    }
-}*/

@@ -7,7 +7,7 @@ export interface SubscriptionData {
     //planName: string;
     //planPrice: number;
     //billingInterval: string;
-    status: 'active' | 'cancelled' | 'expired' | 'pending';
+    status: 'active' | 'cancelled' | 'expired' | 'pending' | '';
     startDate: string;
     renewalDate: string | null;
     expiresAt: string | null;
