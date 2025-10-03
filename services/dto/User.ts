@@ -5,4 +5,5 @@ export interface User {
     username?: string;
     password_hash: string;
     created_at: Date;
+    user_role: string;
 }
