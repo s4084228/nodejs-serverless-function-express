@@ -132,6 +132,43 @@ function normalizeEmail(email: string): string {
  * @param subscriptions - Array of user subscriptions
  * @returns The most relevant subscription
  */
+//function findMostRelevantSubscription(subscriptions: Array<{
+//    subscription_ID: string;
+//    email: string;
+//    plan_ID: string;
+//    status: 'active' | 'cancelled' | 'expired' | 'pending';
+//    start_date: string;
+//    renewal_date: string | null;
+//    expires_at: string | null;
+//    auto_renew: boolean;
+//    updated_at: string;
+//}>): typeof subscriptions[0] {
+//    // Prioritize active subscriptions
+//    const activeSubscription = subscriptions.find(sub => sub.status === 'active');
+
+//    if (activeSubscription) {
+//        return activeSubscription;
+//    }
+
+//    // Fall back to most recently updated subscription
+//    return subscriptions.sort((a, b) => {
+//        const dateA = new Date(a.updated_at || a.start_date).getTime();
+//        const dateB = new Date(b.updated_at || b.start_date).getTime();
+//        return dateB - dateA;
+//    })[0];
+//}
+
+/**
+ * Finds the most relevant subscription from a list
+ * 
+ * Priority order:
+ * 1. Active subscriptions (status === 'active')
+ * 2. Within active subscriptions, prioritize by plan tier (if you have plan hierarchy)
+ * 3. Most recently updated subscription
+ * 
+ * @param subscriptions - Array of user subscriptions
+ * @returns The most relevant subscription
+ */
 function findMostRelevantSubscription(subscriptions: Array<{
     subscription_ID: string;
     email: string;
@@ -143,14 +180,21 @@ function findMostRelevantSubscription(subscriptions: Array<{
     auto_renew: boolean;
     updated_at: string;
 }>): typeof subscriptions[0] {
-    // Prioritize active subscriptions
-    const activeSubscription = subscriptions.find(sub => sub.status === 'active');
-    
-    if (activeSubscription) {
-        return activeSubscription;
+    // Filter active subscriptions
+    const activeSubscriptions = subscriptions.filter(sub => sub.status === 'active');
+
+    if (activeSubscriptions.length > 0) {
+        // Sort active subscriptions by updated_at (most recent first)
+        const sortedActive = activeSubscriptions.sort((a, b) => {
+            const dateA = new Date(a.updated_at || a.start_date).getTime();
+            const dateB = new Date(b.updated_at || b.start_date).getTime();
+            return dateB - dateA;
+        });
+
+        return sortedActive[0];
     }
 
-    // Fall back to most recently updated subscription
+    // Fall back to most recently updated subscription (any status)
     return subscriptions.sort((a, b) => {
         const dateA = new Date(a.updated_at || a.start_date).getTime();
         const dateB = new Date(b.updated_at || b.start_date).getTime();
@@ -180,70 +224,121 @@ function findMostRelevantSubscription(subscriptions: Array<{
  * @returns Promise resolving to the created or updated SubscriptionData
  * @throws Error if subscription creation/update fails or if unable to retrieve result
  */
+//export async function createOrUpdateSubscription(
+//    subscriptionData: CreateSubscriptionRequest
+//): Promise<SubscriptionData> {
+//    try {
+//        const normalizedEmail = normalizeEmail(subscriptionData.email);
+
+//        // Check if user already has an active subscription
+//        const existingSubscription = await findActiveSubscriptionByEmail(normalizedEmail);
+
+//        if (existingSubscription) {
+//            // UPDATE PATH: User has an active subscription
+//            console.log(`Updating existing subscription for email: ${normalizedEmail}`);
+
+//            // Build update DTO with new subscription data
+//            const updateDto: UpdateSubscriptionDto = {
+//                subscription_ID: subscriptionData.subscriptionId,
+//                plan_ID: subscriptionData.planId,
+//                status: subscriptionData.status || 'active',
+//                renewal_date: subscriptionData.renewalDate || null,
+//                expires_at: subscriptionData.expiresAt || null,
+//                auto_renew: subscriptionData.autoRenew ?? true // Default to true if not specified
+//            };
+
+//            // Perform update operation
+//            await updateSubscription(existingSubscription.subscription_ID, updateDto);
+
+//            // Fetch the updated record to return fresh data
+//            const updatedSubscription = await findSubscriptionById(existingSubscription.subscription_ID);
+
+//            if (!updatedSubscription) {
+//                throw new Error(`Failed to retrieve updated subscription: ${existingSubscription.subscription_ID}`);
+//            }
+
+//            return mapToSubscriptionData(updatedSubscription);
+//        } else {
+//            // CREATE PATH: No active subscription exists
+//            console.log(`Creating new subscription for email: ${normalizedEmail}`);
+
+//            // Build create DTO with all required fields
+//            const createDto: CreateSubscriptionDto = {
+//                subscription_ID: subscriptionData.subscriptionId,
+//                email: normalizedEmail,
+//                plan_ID: subscriptionData.planId,
+//                status: subscriptionData.status || 'active',
+//                start_date: subscriptionData.startDate || new Date().toISOString(), // Default to now
+//                renewal_date: subscriptionData.renewalDate || null,
+//                expires_at: subscriptionData.expiresAt || null,
+//                auto_renew: subscriptionData.autoRenew ?? true // Default to true if not specified
+//            };
+
+//            // Create new subscription record
+//            const newSubscription = await createSubscription(createDto);
+
+//            // Fetch created record to ensure we have all fields
+//            const subscription = await findSubscriptionById(newSubscription.subscription_ID);
+
+//            if (!subscription) {
+//                throw new Error(`Failed to retrieve created subscription: ${newSubscription.subscription_ID}`);
+//            }
+
+//            return mapToSubscriptionData(subscription);
+//        }
+//    } catch (error: unknown) {
+//        console.error('Error creating/updating subscription:', error);
+//        throw error;
+//    }
+//}
+
+/**
+ * Creates a new subscription for a user
+ * 
+ * Business Logic:
+ * - Normalizes email to lowercase for consistency
+ * - Always creates a new subscription (allows multiple subscriptions per user)
+ * - Auto-renew defaults to true if not specified
+ * - Status defaults to 'active' if not specified
+ * - Same subscriptionId cannot be duplicated (enforced by database unique constraint)
+ * 
+ * @param subscriptionData - Subscription details to create
+ * @returns Promise resolving to the created SubscriptionData
+ * @throws Error if subscription creation fails (including duplicate subscriptionId)
+ */
 export async function createOrUpdateSubscription(
     subscriptionData: CreateSubscriptionRequest
 ): Promise<SubscriptionData> {
     try {
         const normalizedEmail = normalizeEmail(subscriptionData.email);
 
-        // Check if user already has an active subscription
-        const existingSubscription = await findActiveSubscriptionByEmail(normalizedEmail);
+        console.log(`Creating new subscription for email: ${normalizedEmail}`);
 
-        if (existingSubscription) {
-            // UPDATE PATH: User has an active subscription
-            console.log(`Updating existing subscription for email: ${normalizedEmail}`);
+        // Build create DTO with all required fields
+        const createDto: CreateSubscriptionDto = {
+            subscription_ID: subscriptionData.subscriptionId,
+            email: normalizedEmail,
+            plan_ID: subscriptionData.planId,
+            status: subscriptionData.status || 'active',
+            start_date: subscriptionData.startDate || new Date().toISOString(),
+            renewal_date: subscriptionData.renewalDate || null,
+            expires_at: subscriptionData.expiresAt || null,
+            auto_renew: subscriptionData.autoRenew ?? true
+        };
 
-            // Build update DTO with new subscription data
-            const updateDto: UpdateSubscriptionDto = {
-                subscription_ID: subscriptionData.subscriptionId,
-                plan_ID: subscriptionData.planId,
-                status: subscriptionData.status || 'active',
-                renewal_date: subscriptionData.renewalDate || null,
-                expires_at: subscriptionData.expiresAt || null,
-                auto_renew: subscriptionData.autoRenew ?? true // Default to true if not specified
-            };
+        // Create new subscription record
+        const newSubscription = await createSubscription(createDto);
 
-            // Perform update operation
-            await updateSubscription(existingSubscription.subscription_ID, updateDto);
+        // Fetch created record to ensure we have all fields
+        const subscription = await findSubscriptionById(newSubscription.subscription_ID);
 
-            // Fetch the updated record to return fresh data
-            const updatedSubscription = await findSubscriptionById(existingSubscription.subscription_ID);
-
-            if (!updatedSubscription) {
-                throw new Error(`Failed to retrieve updated subscription: ${existingSubscription.subscription_ID}`);
-            }
-
-            return mapToSubscriptionData(updatedSubscription);
-        } else {
-            // CREATE PATH: No active subscription exists
-            console.log(`Creating new subscription for email: ${normalizedEmail}`);
-
-            // Build create DTO with all required fields
-            const createDto: CreateSubscriptionDto = {
-                subscription_ID: subscriptionData.subscriptionId,
-                email: normalizedEmail,
-                plan_ID: subscriptionData.planId,
-                status: subscriptionData.status || 'active',
-                start_date: subscriptionData.startDate || new Date().toISOString(), // Default to now
-                renewal_date: subscriptionData.renewalDate || null,
-                expires_at: subscriptionData.expiresAt || null,
-                auto_renew: subscriptionData.autoRenew ?? true // Default to true if not specified
-            };
-
-            // Create new subscription record
-            const newSubscription = await createSubscription(createDto);
-            
-            // Fetch created record to ensure we have all fields
-            const subscription = await findSubscriptionById(newSubscription.subscription_ID);
-
-            if (!subscription) {
-                throw new Error(`Failed to retrieve created subscription: ${newSubscription.subscription_ID}`);
-            }
-
-            return mapToSubscriptionData(subscription);
+        if (!subscription) {
+            throw new Error(`Failed to retrieve created subscription: ${newSubscription.subscription_ID}`);
         }
+
+        return mapToSubscriptionData(subscription);
     } catch (error: unknown) {
-        console.error('Error creating/updating subscription:', error);
+        console.error('Error creating subscription:', error);
         throw error;
     }
 }
@@ -345,3 +440,30 @@ export async function getActiveUserSubscription(email: string): Promise<Subscrip
         throw error;
     }
 }
+
+/**
+ * Gets all subscriptions for a user by email
+ * 
+ * Returns all subscriptions (active, cancelled, expired) sorted by date.
+ * Useful for subscription history or managing multiple subscriptions.
+ * 
+ * @param email - User's email address
+ * @returns Promise resolving to array of SubscriptionData
+ * @throws Error if database operation fails
+ */
+export async function getAllUserSubscriptions(email: string): Promise<SubscriptionData[]> {
+    try {
+        const normalizedEmail = normalizeEmail(email);
+        const subscriptions = await findSubscriptionsByEmail(normalizedEmail);
+
+        if (!subscriptions || subscriptions.length === 0) {
+            return [];
+        }
+
+        return subscriptions.map(sub => mapToSubscriptionData(sub));
+    } catch (error: unknown) {
+        console.error('Error getting all user subscriptions:', error);
+        throw error;
+    }
+}
+
