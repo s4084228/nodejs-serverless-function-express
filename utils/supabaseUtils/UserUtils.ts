@@ -591,6 +591,10 @@ export async function upsertGoogleUser(googleData: {
         throw error;
     }
 }
+
+function normalizeEmail(email: string) {
+    return email.toLowerCase().trim();
+}
 // ============================================================================
 // Usage Examples
 // ============================================================================
