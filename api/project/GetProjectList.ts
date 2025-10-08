@@ -8,12 +8,12 @@
  * @access Private (requires authentication)
  */
 import type { VercelResponse } from '@vercel/node';
-import { createHandler } from '../../services/utils/HandlerFactory';
-import { ResponseUtils } from '../../services/utils/ResponseUtils';
+import { createHandler } from '../../utils/HandlerFactory';
+import { ResponseUtils } from '../../utils/ResponseUtils';
 import { ProjectService } from '../../services/ProjectService';
-import { AuthenticatedRequest } from '../../services/middleware/Auth';
-import { ProjectListItem } from '../../services/entities/project/ProjectListItem';
-import { ProjectListResponse } from '../../services/entities/project/ProjectListResponse';
+import { AuthenticatedRequest } from '../../middleware/Auth';
+import { ProjectListItem } from '../../entities/project/ProjectListItem';
+import { ProjectListResponse } from '../../entities/project/ProjectListResponse';
 
 /**
  * Handles retrieval of simplified project list for authenticated users
