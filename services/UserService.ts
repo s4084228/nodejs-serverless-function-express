@@ -308,10 +308,10 @@ export async function createUser(userData: UserData): Promise<UserResponse> {
         if (userError) {
             if (userError.code === '23505') { // PostgreSQL unique violation code
                 if (userError.message.includes('email')) {
-                    throw new Error('EMAIL_TAKEN');
+                    throw new Error('Email already registered');
                 }
                 if (userError.message.includes('username')) {
-                    throw new Error('USERNAME_TAKEN');
+                    throw new Error('Username already taken');
                 }
             }
             throw userError;
@@ -464,6 +464,7 @@ export async function getUserPreferences(email: string): Promise<{
         throw new Error('Failed to get user preferences');
     }
 }
+
 
 // ============================================================================
 // Notes for Future Improvements

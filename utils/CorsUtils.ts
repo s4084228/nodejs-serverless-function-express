@@ -108,7 +108,8 @@ export class CorsUtils {
      * const allowedOrigins = [
      *   'https://myapp.com',
      *   'https://staging.myapp.com',
-     *   'http://localhost:3000'
+     *   'http://localhost:3000',
+     *   'http://localhost:3001'
      * ];
      * const origin = allowedOrigins.includes(requestOrigin) 
      *   ? requestOrigin 

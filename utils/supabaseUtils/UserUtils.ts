@@ -474,6 +474,123 @@ export async function deleteResetToken(tokenId: number): Promise<void> {
     }
 }
 
+
+/**
+ * Creates or updates a user account from Google OAuth
+ * 
+ * Handles Google Sign-In by:
+ * 1. Checking if user exists by Firebase UID or email
+ * 2. Creating new user if doesn't exist
+ * 3. Updating existing user profile if already exists
+ * 4. No password hash needed (OAuth authentication)
+ * 
+ * @param googleData - Google user profile data
+ * @returns Complete user data in UserResponse format
+ * @throws Error if upsert operation fails
+ */
+export async function upsertGoogleUser(googleData: {
+    firebaseUid: string;
+    email: string | null;
+    username: string;
+    firstName: string | null;
+    lastName: string | null;
+    avatarUrl: string | null;
+}): Promise<CompleteUser> {
+    const { firebaseUid, email, username, firstName, lastName, avatarUrl } = googleData;
+
+    try {
+        const normalizedEmail = email ? normalizeEmail(email) : null;
+
+        // Check if user already exists by email
+        let existingUser = normalizedEmail ? await findUserByEmail(normalizedEmail) : null;
+
+        if (existingUser) {
+            // User exists - update profile with latest Google data
+            console.log(`Updating existing user from Google: ${normalizedEmail}`);
+
+            // Update profile if new data available
+            if (firstName || lastName || avatarUrl) {
+                const { error: profileError } = await supabase
+                    .from('UserProfile')
+                    .upsert({
+                        email: normalizedEmail!,
+                        first_name: firstName || existingUser.profile?.first_name || null,
+                        last_name: lastName || existingUser.profile?.last_name || null,
+                        avatar_url: avatarUrl || existingUser.profile?.avatar_url || null,
+                        updated_at: new Date().toISOString()
+                    }, {
+                        onConflict: 'email'
+                    });
+
+                if (profileError) {
+                    console.error('Profile update failed:', profileError);
+                }
+            }
+
+            // Fetch updated user data
+            const updatedUser = await findUserByEmail(normalizedEmail!);
+            return updatedUser!;
+
+        } else {
+            // New user - create account
+            console.log(`Creating new user from Google: ${normalizedEmail}`);
+
+            const { data: newUser, error: userError } = await supabase
+                .from('User')
+                .insert({
+                    email: normalizedEmail,
+                    username: username,
+                    password_hash: null, // No password for OAuth users
+                    firebase_uid: firebaseUid, // Store Firebase UID for linking
+                    created_at: new Date().toISOString(),
+                    user_role: "user"
+                })
+                .select('*')
+                .single();
+
+            if (userError) {
+                if (userError.code === '23505') {
+                    if (userError.message.includes('email')) {
+                        throw new Error('Email already registered');
+                    }
+                    if (userError.message.includes('username')) {
+                        throw new Error('Username already taken');
+                    }
+                }
+                throw userError;
+            }
+
+            // Create profile
+            if (firstName || lastName || avatarUrl) {
+                const { error: profileError } = await supabase
+                    .from('UserProfile')
+                    .insert({
+                        email: normalizedEmail!,
+                        first_name: firstName,
+                        last_name: lastName,
+                        avatar_url: avatarUrl,
+                        updated_at: new Date().toISOString()
+                    });
+
+                if (profileError) {
+                    console.error('Profile creation failed:', profileError);
+                }
+            }
+
+            // Fetch complete user data
+            const completeUser = await findUserByEmail(normalizedEmail!);
+            if (!completeUser) {
+                throw new Error('Failed to retrieve created user');
+            }
+
+            return completeUser;
+        }
+
+    } catch (error: unknown) {
+        console.error('Error upserting Google user:', error);
+        throw error;
+    }
+}
 // ============================================================================
 // Usage Examples
 // ============================================================================
