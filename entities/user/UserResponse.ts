@@ -7,6 +7,6 @@ export default interface UserResponse {
     organisation?: string;
     avatarUrl?: string;
     displayName: string;
-    createdAt: Date;
+    createdAt?: Date;
     userRole: string;
 }

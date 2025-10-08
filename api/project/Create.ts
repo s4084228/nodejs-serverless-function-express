@@ -1,44 +1,65 @@
-// api/project/Create.ts - Use the refactored version
+/**
+ * Create Project API Endpoint
+ * 
+ * Creates a new project for an authenticated user.
+ * Validates project data and stores it in MongoDB.
+ * 
+ * @route POST /api/project/create
+ * @access Private (requires authentication)
+ */
 import type { VercelResponse } from '@vercel/node';
-import { createHandler } from '../../services/utils/HandlerFactory';
-import { Validators } from '../../services/validators';
-import { ResponseUtils } from '../../services/utils/ResponseUtils';
-import ValidationUtils from '../../services/validators/ValidationUtils';
+import { createHandler } from '../../utils/HandlerFactory';
+import { Validators } from '../../validators';
+import { ResponseUtils } from '../../utils/ResponseUtils';
+import ValidationUtils from '../../validators/ValidationUtils';
 import { ProjectService } from '../../services/ProjectService';
-import { AuthenticatedRequest } from '../../services/middleware/Auth';
-import ProjectData from "../../services/entities/project/ProjectData"
+import { AuthenticatedRequest } from '../../middleware/Auth';
+import ProjectData from "../../entities/project/ProjectData";
 
-const createProject = async (req: AuthenticatedRequest, res: VercelResponse) => {
-  const requestData = req.body;
+/**
+ * Handles project creation for authenticated users
+ * 
+ * Process:
+ * 1. Extracts project data from request body
+ * 2. Associates project with authenticated user
+ * 3. Validates field formats (e.g., dates, URLs, emails)
+ * 4. Validates project-specific business rules
+ * 5. Creates project in MongoDB via ProjectService
+ * 6. Returns created project data
+ * 
+ * @param req - Authenticated request containing project data in body
+ * @param res - Response object
+ * @returns Created project data on success, validation errors on failure
+ */
+const createProject = async (req: AuthenticatedRequest, res: VercelResponse): Promise<void> => {
+    const requestData = req.body;
 
-  // Auth check - ensure user can only create projects for themselves
-  /*if (req.user.userId.toString() !== requestData.userId) {
-    ResponseUtils.send(res, ResponseUtils.unauthorized('Authentication Failed'));
-    return;
-  }*/
-  requestData.userId = req.user.userId.toString();
-  // Additional field format validation
-  const fieldErrors = ValidationUtils.validateFieldFormats(requestData);
-  if (fieldErrors.length > 0) {
-    ResponseUtils.send(res, ResponseUtils.validationError(fieldErrors));
-    return;
-  }
+    // Associate project with authenticated user
+    requestData.userId = req.user.userId.toString();
 
-  // Additional project-specific validation for create
-  const projectErrors = ValidationUtils.validateProjectForCreate(requestData);
-  if (projectErrors.length > 0) {
-    ResponseUtils.send(res, ResponseUtils.validationError(projectErrors));
-    return;
-  }
+    // Validate field formats (dates, emails, URLs, etc.)
+    const fieldErrors = ValidationUtils.validateFieldFormats(requestData);
+    if (fieldErrors.length > 0) {
+        ResponseUtils.send(res, ResponseUtils.validationError(fieldErrors));
+        return;
+    }
 
-  // Business logic - create project
+    // Validate project-specific business rules for creation
+    const projectErrors = ValidationUtils.validateProjectForCreate(requestData);
+    if (projectErrors.length > 0) {
+        ResponseUtils.send(res, ResponseUtils.validationError(projectErrors));
+        return;
+    }
 
-  const result: ProjectData = await ProjectService.createProject(requestData);
-  ResponseUtils.send(res, ResponseUtils.created(result, 'Project created and saved to MongoDB'));
+    // Create project in database
+    const result: ProjectData = await ProjectService.createProject(requestData);
+
+    ResponseUtils.send(res, ResponseUtils.created(result, 'Project created and saved to MongoDB'));
 };
 
+// Export handler with authentication requirement, POST method restriction, and input validation
 export default createHandler(createProject, {
-  requireAuth: true,
-  allowedMethods: ['POST'],
-  validator: Validators.createProject
+    requireAuth: true,
+    allowedMethods: ['POST'],
+    validator: Validators.createProject
 });

@@ -16,6 +16,7 @@ export interface SubscriptionData {
 }
 
 export interface CreateSubscriptionRequest {
+    subscriptionId: string
     email: string;
     planId: string;
     status?: 'active' | 'cancelled' | 'expired' | 'pending';

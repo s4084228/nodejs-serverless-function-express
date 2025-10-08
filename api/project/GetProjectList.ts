@@ -1,35 +1,61 @@
-// api/project/GetProjectList.ts - Refined
+/**
+ * Get Project List API Endpoint
+ * 
+ * Retrieves a simplified list of all projects for an authenticated user.
+ * Returns only project IDs and names (minimal data for dropdowns/listings).
+ * 
+ * @route GET /api/project/list
+ * @access Private (requires authentication)
+ */
 import type { VercelResponse } from '@vercel/node';
 import { createHandler } from '../../services/utils/HandlerFactory';
 import { ResponseUtils } from '../../services/utils/ResponseUtils';
 import { ProjectService } from '../../services/ProjectService';
 import { AuthenticatedRequest } from '../../services/middleware/Auth';
+import { ProjectListItem } from '../../services/entities/project/ProjectListItem';
+import { ProjectListResponse } from '../../services/entities/project/ProjectListResponse';
 
-const getProjectList = async (req: AuthenticatedRequest, res: VercelResponse) => {
-  // Get userId from JWT token (secure)
-  const userId = req.user.userId.toString();
+/**
+ * Handles retrieval of simplified project list for authenticated users
+ * 
+ * Process:
+ * 1. Extracts user ID from JWT token
+ * 2. Fetches all projects for the user
+ * 3. Maps projects to minimal structure (ID and name only)
+ * 4. Sorts projects alphabetically by name
+ * 5. Returns sorted list with count
+ * 
+ * @param req - Authenticated request
+ * @param res - Response object
+ * @returns Simplified project list sorted alphabetically with total count
+ */
+const getProjectList = async (req: AuthenticatedRequest, res: VercelResponse): Promise<void> => {
+    // Extract user ID from JWT token
+    const userId = req.user.userId.toString();
 
-  // Get all projects for the user
-  const projects = await ProjectService.listUserProjects(userId);
+    // Fetch all projects for the authenticated user
+    const projects = await ProjectService.listUserProjects(userId);
 
-  // Extract only project names and IDs
-  const projectList = projects.map((project, index) => ({
-    projectId: project.projectId,
-    projectName: project.tocData?.projectTitle || `Project ${index + 1}`,
-  }));
+    // Map to simplified structure containing only ID and name
+    const projectList : ProjectListItem[] = projects.map((project, index) => ({
+        projectId: project.projectId,
+        projectName: project.tocData?.projectTitle || `Project ${index + 1}`,
+    }));
 
-  // Sort by project name alphabetically
-  projectList.sort((a, b) => a.projectName.localeCompare(b.projectName));
+    // Sort projects alphabetically by name
+    projectList.sort((a, b) => a.projectName.localeCompare(b.projectName));
 
-  const result = {
-    projects: projectList,
-    count: projectList.length
-  };
+    // Build response with project list and count
+    const result: ProjectListResponse = {
+        projects: projectList,
+        count: projectList.length
+    };
 
-  ResponseUtils.send(res, ResponseUtils.success(result, 'Project list retrieved successfully'));
+    ResponseUtils.send(res, ResponseUtils.success(result, 'Project list retrieved successfully'));
 };
 
+// Export handler with authentication requirement and GET method restriction
 export default createHandler(getProjectList, {
-  requireAuth: true,
-  allowedMethods: ['GET']
+    requireAuth: true,
+    allowedMethods: ['GET']
 });
