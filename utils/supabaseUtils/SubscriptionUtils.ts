@@ -237,6 +237,39 @@ export async function updateSubscription(
     }
 }
 
+export async function updateSubscriptionByEmail(
+    email: string,
+    updates: UpdateSubscriptionDto
+): Promise<Subscription> {
+    try {
+        // Build update object with only provided fields
+        const updateData: any = {
+            updated_at: new Date().toISOString()
+        };
+
+        // Only include fields that are explicitly provided
+        if (updates.subscription_ID !== undefined) updateData.subscription_ID = updates.subscription_ID;
+        if (updates.status !== undefined) updateData.status = updates.status;
+        if (updates.plan_ID !== undefined) updateData.plan_ID = updates.plan_ID;
+        if (updates.renewal_date !== undefined) updateData.renewal_date = updates.renewal_date;
+        if (updates.expires_at !== undefined) updateData.expires_at = updates.expires_at;
+        if (updates.auto_renew !== undefined) updateData.auto_renew = updates.auto_renew;
+
+        const { data, error } = await supabase
+            .from('Subscription')
+            .update(updateData)
+            .eq('email', email)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data;
+    } catch (error: unknown) {
+        console.error('Error updating subscription:', error);
+        throw new Error('Failed to update subscription');
+    }
+}
+
 /**
  * Cancels a subscription
  * 
@@ -258,6 +291,27 @@ export async function cancelSubscription(subscriptionId: string): Promise<Subscr
                 updated_at: new Date().toISOString()
             })
             .eq('subscription_ID', subscriptionId)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data;
+    } catch (error: unknown) {
+        console.error('Error cancelling subscription:', error);
+        throw new Error('Failed to cancel subscription');
+    }
+}
+
+export async function cancelSubscriptionByEmail(email: string): Promise<Subscription> {
+    try {
+        const { data, error } = await supabase
+            .from('Subscription')
+            .update({
+                status: 'cancelled',
+                auto_renew: false,
+                updated_at: new Date().toISOString()
+            })
+            .eq('email', email)
             .select()
             .single();
 
