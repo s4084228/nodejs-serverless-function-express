@@ -1,15 +1,40 @@
-// api/subscription/Get.ts
+/**
+ * Get Subscription API Endpoint
+ * 
+ * Retrieves subscription data for an authenticated user.
+ * Supports fetching by subscription ID or retrieving user's active subscription.
+ * 
+ * @route GET /api/subscription/get
+ * @access Private (requires authentication)
+ * @query subscriptionId - Optional: Specific subscription ID to retrieve
+ */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { createHandler } from '../../services/utils/HandlerFactory';
-import { ResponseUtils } from '../../services/utils/ResponseUtils';
+import { createHandler } from '../../utils/HandlerFactory';
+import { ResponseUtils } from '../../utils/ResponseUtils';
 import {
     getSubscriptionById,
-    getActiveUserSubscription,
     getUserSubscription
 } from '../../services/SubscriptionService';
-import { AuthenticatedRequest } from '../../services/middleware/Auth';
+import { AuthenticatedRequest } from '../../middleware/Auth';
 
-const getSubscription = async (req: VercelRequest, res: VercelResponse) => {
+/**
+ * Handles subscription retrieval for authenticated users
+ * 
+ * Process:
+ * 1. Extracts user email from JWT token
+ * 2. Checks if subscriptionId is provided in query params
+ * 3. If subscriptionId exists:
+ *    - Fetches subscription by ID
+ *    - Verifies ownership (subscription email matches authenticated user)
+ * 4. If no subscriptionId:
+ *    - Fetches user's subscription by email
+ * 5. Returns subscription data
+ * 
+ * @param req - Request with optional subscriptionId query parameter
+ * @param res - Response object
+ * @returns Subscription data on success, error on failure or unauthorized access
+ */
+const getSubscription = async (req: VercelRequest, res: VercelResponse): Promise<void> => {
     // Cast to AuthenticatedRequest since requireAuth: true ensures user exists
     const authenticatedReq = req as AuthenticatedRequest;
     const { subscriptionId } = req.query;
@@ -18,7 +43,7 @@ const getSubscription = async (req: VercelRequest, res: VercelResponse) => {
         let subscription;
 
         if (subscriptionId) {
-            // If subscriptionId is provided in query params, get by ID
+            // Fetch subscription by specific ID
             subscription = await getSubscriptionById(subscriptionId as string);
 
             if (!subscription) {
@@ -26,31 +51,25 @@ const getSubscription = async (req: VercelRequest, res: VercelResponse) => {
                 return;
             }
 
-            // Verify that the subscription belongs to the authenticated user
+            // Verify subscription ownership - ensure user can only access their own subscription
             if (subscription.email.toLowerCase() !== authenticatedReq.user.email.toLowerCase()) {
                 ResponseUtils.send(res, ResponseUtils.forbidden('You do not have access to this subscription'));
                 return;
             }
         } else {
-            // If no subscriptionId, get active subscription by email from JWT
+            // Fetch user's subscription by email from JWT token
             const userEmail = authenticatedReq.user.email;
-            //subscription = await getActiveUserSubscription(userEmail);
             subscription = await getUserSubscription(userEmail);
-            
-
-            //if (!subscription) {
-            //    ResponseUtils.send(res, ResponseUtils.notFound('No active subscription found for this user'));
-            //    return;
-            //}
         }
 
         ResponseUtils.send(res, ResponseUtils.success(subscription, 'Subscription retrieved successfully'));
-    } catch (error) {
+    } catch (error: unknown) {
         console.error('Error retrieving subscription:', error);
         ResponseUtils.send(res, ResponseUtils.serverError('Failed to retrieve subscription'));
     }
 };
 
+// Export handler with authentication requirement and GET method restriction
 export default createHandler(getSubscription, {
     allowedMethods: ['GET'],
     requireAuth: true
