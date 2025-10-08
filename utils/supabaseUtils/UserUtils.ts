@@ -541,7 +541,7 @@ export async function upsertGoogleUser(googleData: {
                     email: normalizedEmail,
                     username: username,
                     password_hash: null, // No password for OAuth users
-                    firebase_uid: firebaseUid, // Store Firebase UID for linking
+                   //firebase_uid: firebaseUid, // Store Firebase UID for linking
                     created_at: new Date().toISOString(),
                     user_role: "user"
                 })
